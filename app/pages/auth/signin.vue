@@ -4,7 +4,7 @@ useSeoMeta({
   description: 'Sign in to your TwoTeaspoons account',
 })
 
-const { signIn, signInWithSocial, isAuthenticated } = useAuth()
+const { signIn, signInWithOAuth, isAuthenticated, isAnonymous } = useAuth()
 
 const form = reactive({
   email: '',
@@ -13,9 +13,9 @@ const form = reactive({
 const error = ref('')
 const loading = ref(false)
 
-// Redirect if already authenticated
-watch(isAuthenticated, (authenticated) => {
-  if (authenticated) {
+// Redirect if already signed in (not anonymous)
+watch([isAuthenticated, isAnonymous], ([authenticated, anonymous]) => {
+  if (authenticated && !anonymous) {
     navigateTo('/recipes')
   }
 }, { immediate: true })
@@ -36,7 +36,7 @@ async function handleSubmit(): Promise<void> {
 }
 
 async function handleGoogleSignIn(): Promise<void> {
-  await signInWithSocial('google', '/recipes')
+  await signInWithOAuth('google')
 }
 </script>
 

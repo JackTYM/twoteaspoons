@@ -61,6 +61,29 @@ A feature is complete when:
 3. `npm run lint` passes (ESLint strict)
 4. `npm run test` passes (all test suites)
 
+### Visual Verification Workflow (REQUIRED)
+**After implementing any UI feature, you MUST verify visually:**
+
+1. **Start dev server** if not running: `npm run dev`
+2. **Use Chrome MCP** to navigate to the new/changed pages
+3. **Take screenshots** to `/tmp/` and review against branding guide:
+   - Colors match palette (cream backgrounds, terracotta accents, brown text)
+   - Typography uses Fraunces for headers, Source Sans 3 for body
+   - Border radius is soft (12-20px)
+   - Shadows are subtle and warm
+   - Dark mode works correctly
+4. **Check UI/UX:**
+   - Mobile responsive (test at 375px width)
+   - Interactive states (hover, focus, loading)
+   - Error states are handled gracefully
+   - Empty states are informative
+5. **Fix issues** before committing
+
+**Pages to verify for each feature:**
+- New pages created
+- Modified pages
+- Related pages that might be affected (e.g., navigation)
+
 ### Git Workflow
 - `develop` branch: Active development
 - `master` branch: Stable/production

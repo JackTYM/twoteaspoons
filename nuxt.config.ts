@@ -57,9 +57,11 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-side only
     neonAuthUrl: process.env.NEON_AUTH_URL,
+    neonDataApiUrl: process.env.NEON_DATA_API_URL,
     // Client-side (public)
     public: {
       neonAuthUrl: process.env.NUXT_PUBLIC_NEON_AUTH_URL,
+      neonDataApiUrl: process.env.NUXT_PUBLIC_NEON_DATA_API_URL,
     },
   },
 })

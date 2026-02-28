@@ -1,27 +1,18 @@
 import type { ComputedRef } from 'vue'
+import { useNeonClient, clearSessionCache } from './useNeonClient'
 
 export interface User {
   id: string
   name: string | null
-  email: string
-  emailVerified: boolean
-  createdAt: string
-  updatedAt: string
-}
-
-export interface Session {
-  user: User
-  session: {
-    id: string
-    expiresAt: string
-    token: string
-    userId: string
-  }
+  email: string | null
+  image: string | null
+  isAnonymous: boolean
 }
 
 export interface AuthState {
   user: User | null
   isAuthenticated: boolean
+  isAnonymous: boolean
   isLoading: boolean
 }
 
@@ -29,89 +20,168 @@ export interface AuthState {
 const authState = reactive<AuthState>({
   user: null,
   isAuthenticated: false,
+  isAnonymous: false,
   isLoading: true,
 })
 
 interface UseAuthReturn {
   user: ComputedRef<User | null>
   isAuthenticated: ComputedRef<boolean>
+  isAnonymous: ComputedRef<boolean>
   isLoading: ComputedRef<boolean>
   fetchSession: () => Promise<void>
-  signUp: (email: string, password: string, name?: string) => Promise<{ user?: User; error?: string }>
   signIn: (email: string, password: string) => Promise<{ error?: string }>
-  signInWithSocial: (provider: 'google' | 'github', callbackURL?: string) => Promise<{ error?: string }>
+  signUp: (email: string, password: string, name?: string) => Promise<{ error?: string }>
+  signInWithOAuth: (provider: 'google' | 'github') => Promise<void>
   signOut: () => Promise<void>
+  linkAnonymousAccount: (email: string, password: string) => Promise<{ error?: string }>
 }
 
 export function useAuth(): UseAuthReturn {
   const user = computed(() => authState.user)
   const isAuthenticated = computed(() => authState.isAuthenticated)
+  const isAnonymous = computed(() => authState.isAnonymous)
   const isLoading = computed(() => authState.isLoading)
 
-  // Fetch current session
+  // Fetch current session (works for both anonymous and authenticated)
   async function fetchSession(): Promise<void> {
     authState.isLoading = true
     try {
-      const { session } = await $fetch<{ session: Session | null }>('/api/auth/session')
+      const client = useNeonClient()
+      const session = await client.auth.getSession()
+
       if (session?.user) {
-        authState.user = session.user
+        authState.user = {
+          id: session.user.id,
+          name: session.user.name || null,
+          email: session.user.email || null,
+          image: session.user.image || null,
+          isAnonymous: session.user.isAnonymous ?? false,
+        }
         authState.isAuthenticated = true
+        authState.isAnonymous = session.user.isAnonymous ?? false
       } else {
-        authState.user = null
-        authState.isAuthenticated = false
+        // Get anonymous session
+        const anonSession = await client.auth.signIn.anonymous()
+        if (anonSession?.user) {
+          authState.user = {
+            id: anonSession.user.id,
+            name: null,
+            email: null,
+            image: null,
+            isAnonymous: true,
+          }
+          authState.isAuthenticated = true
+          authState.isAnonymous = true
+        }
       }
-    } catch {
+    } catch (error) {
+      console.error('Failed to fetch session:', error)
       authState.user = null
       authState.isAuthenticated = false
+      authState.isAnonymous = false
     } finally {
       authState.isLoading = false
-    }
-  }
-
-  // Sign up with email/password
-  async function signUp(email: string, password: string, name?: string): Promise<{ user?: User; error?: string }> {
-    try {
-      const result = await $fetch<{ user: User }>('/api/auth/signup', {
-        method: 'POST',
-        body: { email, password, name },
-      })
-      await fetchSession()
-      return { user: result.user }
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Sign up failed'
-      return { error: message }
     }
   }
 
   // Sign in with email/password
   async function signIn(email: string, password: string): Promise<{ error?: string }> {
     try {
-      await $fetch('/api/auth/signin', {
-        method: 'POST',
-        body: { email, password },
+      const client = useNeonClient()
+      const result = await client.auth.signIn.email({
+        email,
+        password,
       })
-      await fetchSession()
-      return {}
-    } catch (error: unknown) {
+
+      if (result?.user) {
+        authState.user = {
+          id: result.user.id,
+          name: result.user.name || null,
+          email: result.user.email || null,
+          image: result.user.image || null,
+          isAnonymous: false,
+        }
+        authState.isAuthenticated = true
+        authState.isAnonymous = false
+        clearSessionCache()
+        return {}
+      }
+      return { error: 'Sign in failed' }
+    } catch (error) {
       const message = error instanceof Error ? error.message : 'Sign in failed'
       return { error: message }
     }
   }
 
-  // Sign in with social provider
-  async function signInWithSocial(provider: 'google' | 'github', callbackURL?: string): Promise<{ error?: string }> {
+  // Sign up with email/password
+  async function signUp(email: string, password: string, name?: string): Promise<{ error?: string }> {
     try {
-      const result = await $fetch<{ data: { url?: string } }>('/api/auth/social', {
-        method: 'POST',
-        body: { provider, callbackURL },
+      const client = useNeonClient()
+      const result = await client.auth.signUp.email({
+        email,
+        password,
+        name: name || undefined,
       })
-      // Social auth typically redirects to provider
-      if (result.data?.url) {
-        window.location.href = result.data.url
+
+      if (result?.user) {
+        authState.user = {
+          id: result.user.id,
+          name: result.user.name || null,
+          email: result.user.email || null,
+          image: result.user.image || null,
+          isAnonymous: false,
+        }
+        authState.isAuthenticated = true
+        authState.isAnonymous = false
+        clearSessionCache()
+        return {}
       }
-      return {}
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Social sign in failed'
+      return { error: 'Sign up failed' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Sign up failed'
+      return { error: message }
+    }
+  }
+
+  // Sign in with OAuth provider
+  async function signInWithOAuth(provider: 'google' | 'github'): Promise<void> {
+    const client = useNeonClient()
+    await client.auth.signIn.oauth({
+      provider,
+      callbackURL: '/recipes',
+    })
+  }
+
+  // Link anonymous account to email/password
+  async function linkAnonymousAccount(email: string, password: string): Promise<{ error?: string }> {
+    if (!authState.isAnonymous) {
+      return { error: 'Not an anonymous user' }
+    }
+
+    try {
+      const client = useNeonClient()
+      // Use the link account method to upgrade anonymous to full account
+      const result = await client.auth.linkAccount.email({
+        email,
+        password,
+      })
+
+      if (result?.user) {
+        authState.user = {
+          id: result.user.id,
+          name: result.user.name || null,
+          email: result.user.email || null,
+          image: result.user.image || null,
+          isAnonymous: false,
+        }
+        authState.isAnonymous = false
+        clearSessionCache()
+        return {}
+      }
+      return { error: 'Failed to link account' }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to link account'
       return { error: message }
     }
   }
@@ -119,21 +189,25 @@ export function useAuth(): UseAuthReturn {
   // Sign out
   async function signOut(): Promise<void> {
     try {
-      await $fetch('/api/auth/signout', { method: 'POST' })
+      const client = useNeonClient()
+      await client.auth.signOut()
     } finally {
-      authState.user = null
-      authState.isAuthenticated = false
+      clearSessionCache()
+      // After sign out, get a new anonymous session
+      await fetchSession()
     }
   }
 
   return {
     user,
     isAuthenticated,
+    isAnonymous,
     isLoading,
     fetchSession,
-    signUp,
     signIn,
-    signInWithSocial,
+    signUp,
+    signInWithOAuth,
     signOut,
+    linkAnonymousAccount,
   }
 }
