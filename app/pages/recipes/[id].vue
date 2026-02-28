@@ -112,6 +112,31 @@ const collectionMenuItems = computed(() => {
     }],
   ]
 })
+
+// Forking
+interface ForkInfo {
+  parent: { id: number; title: string; author: { name: string } } | null
+  forks: Array<{ id: number; title: string; author: { name: string } }>
+  forkCount: number
+}
+
+const { data: forksData } = await useFetch<ForkInfo>(`/api/recipes/${id.value}/forks`)
+const forkInfo = computed(() => forksData.value)
+
+const forking = ref(false)
+
+async function handleFork(): Promise<void> {
+  forking.value = true
+  try {
+    const result = await $fetch<{ recipe: { id: number } }>(`/api/recipes/${id.value}/fork`, {
+      method: 'POST',
+    })
+    navigateTo(`/recipes/${result.recipe.id}/edit`)
+  } catch (err) {
+    console.error('Failed to fork recipe:', err)
+  }
+  forking.value = false
+}
 </script>
 
 <template>
@@ -200,6 +225,18 @@ const collectionMenuItems = computed(() => {
               />
             </UDropdown>
 
+            <!-- Fork Recipe -->
+            <UButton
+              v-if="!isOwner"
+              color="neutral"
+              variant="outline"
+              icon="i-heroicons-document-duplicate"
+              :loading="forking"
+              @click="handleFork"
+            >
+              Fork
+            </UButton>
+
             <template v-if="isOwner">
               <UButton
                 :to="`/recipes/${recipe.id}/edit`"
@@ -269,6 +306,63 @@ const collectionMenuItems = computed(() => {
               {{ recipe.sourceSite || recipe.sourceAuthor || 'original source' }}
             </a>
           </p>
+        </div>
+
+        <!-- Fork Info -->
+        <div
+          v-if="forkInfo?.parent || (forkInfo?.forks && forkInfo.forks.length > 0)"
+          class="p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg mb-8"
+        >
+          <!-- Forked From -->
+          <div
+            v-if="forkInfo.parent"
+            class="flex items-center gap-2 text-sm"
+          >
+            <UIcon
+              name="i-heroicons-arrow-turn-up-left"
+              class="w-4 h-4 text-neutral-400"
+            />
+            <span class="text-neutral-500 dark:text-neutral-400">Forked from</span>
+            <NuxtLink
+              :to="`/recipes/${forkInfo.parent.id}`"
+              class="text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              {{ forkInfo.parent.title }}
+            </NuxtLink>
+            <span class="text-neutral-400">by {{ forkInfo.parent.author?.name }}</span>
+          </div>
+
+          <!-- Variations -->
+          <div
+            v-if="forkInfo.forks && forkInfo.forks.length > 0"
+            :class="{ 'mt-3 pt-3 border-t border-neutral-200 dark:border-neutral-700': forkInfo.parent }"
+          >
+            <div class="flex items-center gap-2 text-sm mb-2">
+              <UIcon
+                name="i-heroicons-document-duplicate"
+                class="w-4 h-4 text-neutral-400"
+              />
+              <span class="text-neutral-500 dark:text-neutral-400">
+                {{ forkInfo.forkCount }} variation{{ forkInfo.forkCount === 1 ? '' : 's' }}
+              </span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <NuxtLink
+                v-for="fork in forkInfo.forks.slice(0, 5)"
+                :key="fork.id"
+                :to="`/recipes/${fork.id}`"
+                class="text-sm px-2 py-1 bg-neutral-200 dark:bg-neutral-700 rounded hover:bg-neutral-300 dark:hover:bg-neutral-600 transition-colors"
+              >
+                {{ fork.title }}
+              </NuxtLink>
+              <span
+                v-if="forkInfo.forks.length > 5"
+                class="text-sm text-neutral-400 py-1"
+              >
+                +{{ forkInfo.forks.length - 5 }} more
+              </span>
+            </div>
+          </div>
         </div>
 
         <div class="grid md:grid-cols-3 gap-8">
