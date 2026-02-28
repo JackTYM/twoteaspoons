@@ -35,6 +35,19 @@ const dropdownItems = computed(() => [
     click: handleSignOut,
   }],
 ])
+
+const addRecipeItems = [
+  [{
+    label: 'Create from scratch',
+    icon: 'i-heroicons-pencil-square',
+    to: '/recipes/new',
+  }],
+  [{
+    label: 'Import from URL',
+    icon: 'i-heroicons-arrow-down-tray',
+    to: '/recipes/import',
+  }],
+]
 </script>
 
 <template>
@@ -69,13 +82,15 @@ const dropdownItems = computed(() => [
                 >
                   My Recipes
                 </UButton>
-                <UButton
-                  to="/recipes/new"
-                  color="primary"
-                  icon="i-heroicons-plus"
-                >
-                  <span class="hidden sm:inline">New Recipe</span>
-                </UButton>
+                <UDropdown :items="addRecipeItems">
+                  <UButton
+                    color="primary"
+                    icon="i-heroicons-plus"
+                    trailing-icon="i-heroicons-chevron-down"
+                  >
+                    <span class="hidden sm:inline">Add</span>
+                  </UButton>
+                </UDropdown>
                 <UDropdown :items="dropdownItems">
                   <UButton
                     color="neutral"
