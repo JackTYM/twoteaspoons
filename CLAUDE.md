@@ -90,22 +90,54 @@ tests/
 
 ## Branding
 
+See full branding kit: `docs/branding/branding-kit.html`
+
 ### Personality
-Warm & homey - cozy family kitchen feel, friendly and approachable
+Warm & homey - modern farmhouse feel, friendly and approachable
 
 ### Colors
-- **Base:** Soft creams and warm browns
-- **Accents:** Soft pastels
-- Logo and specific palette TBD
+
+**Base - Warm Browns & Creams:**
+| Name | Hex | Usage |
+|------|-----|-------|
+| Cream Light | `#FEF9F2` | Page background |
+| Cream | `#F8EEE2` | Card backgrounds, secondary bg |
+| Cream Dark | `#EBE0D0` | Borders, dividers |
+| Brown Light | `#CBA67A` | Muted text, placeholders |
+| Brown | `#96724D` | Secondary text |
+| Brown Dark | `#6B4D35` | Primary text, headings |
+| Brown Darkest | `#4A3525` | High emphasis text |
+
+**Accents - Kitchen Garden + Terracotta:**
+| Name | Hex | Usage |
+|------|-----|-------|
+| Sage Light | `#B5C9A3` | Success backgrounds, dietary tags |
+| Sage | `#8FA878` | Success buttons, positive actions |
+| Sage Dark | `#6E8759` | Success text |
+| Terracotta Light | `#E5A892` | Warning/allergen backgrounds |
+| Terracotta | `#C97B5D` | Primary accent, favorites, CTAs |
+| Terracotta Dark | `#A65E42` | Accent hover states |
+| Butter Light | `#F7E8BF` | Info backgrounds, breakfast tags |
+| Butter | `#F0D699` | Stars, ratings |
+| Butter Dark | `#DCBE72` | Info emphasis |
 
 ### Typography
-- **Headers:** Serif font (classic recipe book feel)
-- **Body:** Clean sans-serif for readability
+- **Headers:** Fraunces (friendly serif with personality)
+- **Body:** Source Sans 3 (clean, readable)
+- **Font imports:** Google Fonts
+
+### Logo
+- Keyring with two playful/cartoon teaspoons
+- Simple circle ring
+- Colors: Terracotta or Brown Dark
+- Tagline: "Recipes worth sharing"
 
 ### UI Guidelines
 - Use Nuxt UI components as base
-- Customize to match warm/homey branding
-- Maintain consistency across all pages
+- Border radius: 12-20px (softer, friendlier)
+- Shadows: Subtle, warm (rgba with low opacity)
+- Focus states: Terracotta ring
+- Hover: Slight lift (translateY -1px to -4px)
 - Mobile-first responsive design (PWA)
 
 ## Key Features Reference
