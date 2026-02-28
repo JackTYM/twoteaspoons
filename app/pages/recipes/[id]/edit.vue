@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { RecipeWithRelations } from '~/types/recipe'
 
+definePageMeta({
+  middleware: 'auth',
+})
+
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 

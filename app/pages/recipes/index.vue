@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import type { Recipe, RecipeWithRelations } from '~/types/recipe'
 
+definePageMeta({
+  middleware: 'auth',
+})
+
 useSeoMeta({
   title: 'My Recipes',
   description: 'Your personal recipe collection',

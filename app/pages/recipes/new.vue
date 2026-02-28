@@ -1,4 +1,8 @@
 <script setup lang="ts">
+definePageMeta({
+  middleware: 'auth',
+})
+
 useSeoMeta({
   title: 'New Recipe',
   description: 'Create a new recipe',
