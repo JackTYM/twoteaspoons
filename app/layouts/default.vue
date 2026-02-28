@@ -82,6 +82,14 @@ const addRecipeItems = [
                 >
                   My Recipes
                 </UButton>
+                <UButton
+                  to="/shopping"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-heroicons-shopping-cart"
+                >
+                  <span class="hidden sm:inline">Shopping</span>
+                </UButton>
                 <UDropdown :items="addRecipeItems">
                   <UButton
                     color="primary"
