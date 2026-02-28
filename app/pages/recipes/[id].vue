@@ -237,6 +237,14 @@ async function handleFork(): Promise<void> {
               Fork
             </UButton>
 
+            <!-- Print -->
+            <UButton
+              :to="`/recipes/${recipe.id}/print`"
+              color="neutral"
+              variant="outline"
+              icon="i-heroicons-printer"
+            />
+
             <template v-if="isOwner">
               <UButton
                 :to="`/recipes/${recipe.id}/edit`"
