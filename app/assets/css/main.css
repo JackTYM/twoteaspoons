@@ -1,0 +1,100 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+/*
+ * TwoTeaspoons Brand Colors
+ * See docs/branding/branding-kit.html for full reference
+ */
+
+@theme {
+  /* Primary - Terracotta */
+  --color-primary-50: #FDF5F3;
+  --color-primary-100: #FCE8E3;
+  --color-primary-200: #F9D5CB;
+  --color-primary-300: #F3B9A7;
+  --color-primary-400: #E5A892;
+  --color-primary-500: #C97B5D;
+  --color-primary-600: #A65E42;
+  --color-primary-700: #8B4D37;
+  --color-primary-800: #734132;
+  --color-primary-900: #5F382D;
+  --color-primary-950: #331B14;
+
+  /* Neutral - Warm Browns & Creams */
+  --color-neutral-50: #FEF9F2;
+  --color-neutral-100: #F8EEE2;
+  --color-neutral-200: #EBE0D0;
+  --color-neutral-300: #D4C4AE;
+  --color-neutral-400: #CBA67A;
+  --color-neutral-500: #96724D;
+  --color-neutral-600: #6B4D35;
+  --color-neutral-700: #4A3525;
+  --color-neutral-800: #3D2B1E;
+  --color-neutral-900: #2D1F15;
+  --color-neutral-950: #1A120C;
+
+  /* Success - Sage Green */
+  --color-success-50: #F4F8F1;
+  --color-success-100: #E5EFE0;
+  --color-success-200: #D0E2C6;
+  --color-success-300: #B5C9A3;
+  --color-success-400: #8FA878;
+  --color-success-500: #6E8759;
+  --color-success-600: #566B46;
+  --color-success-700: #44543A;
+  --color-success-800: #384431;
+  --color-success-900: #2F392A;
+  --color-success-950: #171D14;
+
+  /* Warning - Butter Yellow */
+  --color-warning-50: #FDFBF3;
+  --color-warning-100: #FAF4E0;
+  --color-warning-200: #F7E8BF;
+  --color-warning-300: #F0D699;
+  --color-warning-400: #DCBE72;
+  --color-warning-500: #C9A54E;
+  --color-warning-600: #A88639;
+  --color-warning-700: #8A6930;
+  --color-warning-800: #72542C;
+  --color-warning-900: #5E4528;
+  --color-warning-950: #352414;
+
+  /* Error - Using terracotta dark range */
+  --color-error-50: #FEF3F2;
+  --color-error-100: #FEE4E2;
+  --color-error-200: #FECECA;
+  --color-error-300: #FCA5A5;
+  --color-error-400: #F87171;
+  --color-error-500: #DC2626;
+  --color-error-600: #B91C1C;
+  --color-error-700: #991B1B;
+  --color-error-800: #7F1D1D;
+  --color-error-900: #631919;
+  --color-error-950: #3B0D0D;
+
+  /* Custom brand colors for direct use */
+  --color-cream: #FEF9F2;
+  --color-cream-dark: #F8EEE2;
+  --color-brown: #6B4D35;
+  --color-brown-dark: #4A3525;
+  --color-terracotta: #C97B5D;
+  --color-sage: #8FA878;
+  --color-butter: #F0D699;
+
+  /* Typography */
+  --font-family-display: 'Fraunces', serif;
+  --font-family-body: 'Source Sans 3', sans-serif;
+}
+
+/* Base styles */
+:root {
+  --ui-radius: 0.75rem;
+}
+
+body {
+  font-family: var(--font-family-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-display);
+}

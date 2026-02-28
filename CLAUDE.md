@@ -10,6 +10,7 @@ TwoTeaspoons (twotsps.com) is a recipe sharing platform for home cooks. Built wi
 - **Database:** Neon Postgres + Drizzle ORM
 - **Auth:** Neon Auth
 - **UI:** Nuxt UI (Tailwind-based)
+- **SEO:** @nuxtjs/seo (robots, sitemap, schema.org, og-image, link-checker)
 - **Image Storage:** Cloudflare R2
 - **AI:** Claude via AWS Bedrock (ingredient recognition, recipe parsing)
 - **Nutrition:** USDA FoodData Central API
@@ -47,6 +48,11 @@ npm run db:studio    # Open Drizzle Studio
 - **Vitest:** Unit tests for utilities, composables
 - **Vue Test Utils:** Component tests
 - **Playwright:** E2E browser tests for user flows
+
+### Screenshots
+- Save screenshots to `/tmp/` not `docs/screenshots/`
+- Use Chrome MCP for visual verification during development
+- Screenshots are temporary and should not be committed
 
 ### Definition of Done
 A feature is complete when:
@@ -120,6 +126,18 @@ Warm & homey - modern farmhouse feel, friendly and approachable
 | Butter Light | `#F7E8BF` | Info backgrounds, breakfast tags |
 | Butter | `#F0D699` | Stars, ratings |
 | Butter Dark | `#DCBE72` | Info emphasis |
+
+**Dark Mode:**
+| Element | Light Class | Dark Class |
+|---------|-------------|------------|
+| Page BG | `bg-neutral-50` | `dark:bg-neutral-950` |
+| Section BG | `bg-neutral-100` | `dark:bg-neutral-900` |
+| Card BG | `bg-neutral-50` | `dark:bg-neutral-800` |
+| Borders | `border-neutral-200` | `dark:border-neutral-700` |
+| Headings | `text-neutral-700` | `dark:text-neutral-50` |
+| Body Text | `text-neutral-500` | `dark:text-neutral-400` |
+| Accent BG | `bg-{color}-100` | `dark:bg-{color}-900` |
+| Accent Text | `text-{color}-600` | `dark:text-{color}-400` |
 
 ### Typography
 - **Headers:** Fraunces (friendly serif with personality)
@@ -233,9 +251,40 @@ Warm & homey - modern farmhouse feel, friendly and approachable
 - Service worker for caching
 - App manifest with icons
 
+## SEO Configuration (@nuxtjs/seo)
+
+Site configured in `nuxt.config.ts`:
+- URL: https://twotsps.com
+- Auto-generated /sitemap.xml and /robots.txt
+- Schema.org structured data for recipes (Recipe schema)
+- Dynamic OG images for social sharing
+- Link checker for broken link detection
+
+### Recipe Schema.org
+Use `useSchemaOrg` composable for recipe pages:
+```typescript
+useSchemaOrg([
+  defineRecipe({
+    name: recipe.title,
+    image: recipe.coverPhoto,
+    author: { name: recipe.author },
+    prepTime: `PT${recipe.prepTime}M`,
+    cookTime: `PT${recipe.cookTime}M`,
+    recipeYield: `${recipe.servings} servings`,
+    recipeIngredient: recipe.ingredients.map(i => `${i.amount} ${i.unit} ${i.item}`),
+    recipeInstructions: recipe.instructions.map(i => ({ text: i.step })),
+  })
+])
+```
+
 ## Print Styling
 
 - Separate print stylesheets
 - 3x5 card layout: specific dimensions, margins
 - Multi-card continuation with page breaks
 - Format selection UI with visual icons
+
+## Resources & References
+
+- **Neon and Drizzle ORM best practices**: https://raw.githubusercontent.com/neondatabase-labs/ai-rules/main/neon-drizzle.mdc
+- **Neon Serverless connection patterns**: https://raw.githubusercontent.com/neondatabase-labs/ai-rules/main/neon-serverless.mdc
