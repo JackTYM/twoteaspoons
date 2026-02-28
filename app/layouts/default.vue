@@ -83,6 +83,14 @@ const addRecipeItems = [
                   My Recipes
                 </UButton>
                 <UButton
+                  to="/collections"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-heroicons-folder"
+                >
+                  <span class="hidden sm:inline">Collections</span>
+                </UButton>
+                <UButton
                   to="/shopping"
                   variant="ghost"
                   color="neutral"

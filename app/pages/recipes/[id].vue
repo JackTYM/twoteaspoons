@@ -4,9 +4,15 @@ import type { RecipeWithRelations } from '~/types/recipe'
 const route = useRoute()
 const id = computed(() => route.params.id as string)
 
-const { data, status, error } = await useFetch<{ recipe: RecipeWithRelations }>(`/api/recipes/${id.value}`)
+interface RecipeResponse {
+  recipe: RecipeWithRelations
+  isOwner: boolean
+}
+
+const { data, status, error } = await useFetch<RecipeResponse>(`/api/recipes/${id.value}`)
 
 const recipe = computed(() => data.value?.recipe)
+const isOwner = computed(() => data.value?.isOwner ?? false)
 
 // SEO
 watchEffect(() => {
@@ -56,6 +62,56 @@ async function handleDelete(): Promise<void> {
   }
   deleting.value = false
 }
+
+// Collections
+interface Collection {
+  id: number
+  name: string
+}
+
+const { data: collectionsData } = await useFetch<{ collections: Collection[] }>('/api/collections')
+const collections = computed(() => collectionsData.value?.collections || [])
+const addingToCollection = ref(false)
+
+async function addToCollection(collectionId: number): Promise<void> {
+  addingToCollection.value = true
+  try {
+    await $fetch(`/api/collections/${collectionId}/recipes`, {
+      method: 'POST',
+      body: { recipeId: Number(id.value) },
+    })
+    // Show success toast or notification
+  } catch (err) {
+    console.error('Failed to add to collection:', err)
+  }
+  addingToCollection.value = false
+}
+
+const collectionMenuItems = computed(() => {
+  if (collections.value.length === 0) {
+    return [[{
+      label: 'No collections yet',
+      disabled: true,
+    }], [{
+      label: 'Create Collection',
+      icon: 'i-heroicons-plus',
+      to: '/collections/new',
+    }]]
+  }
+
+  return [
+    collections.value.map(c => ({
+      label: c.name,
+      icon: 'i-heroicons-folder',
+      click: (): void => { addToCollection(c.id) },
+    })),
+    [{
+      label: 'Create Collection',
+      icon: 'i-heroicons-plus',
+      to: '/collections/new',
+    }],
+  ]
+})
 </script>
 
 <template>
@@ -133,20 +189,33 @@ async function handleDelete(): Promise<void> {
             >
               Cook
             </UButton>
-            <UButton
-              :to="`/recipes/${recipe.id}/edit`"
-              color="neutral"
-              variant="outline"
-              icon="i-heroicons-pencil"
-            >
-              Edit
-            </UButton>
-            <UButton
-              color="error"
-              variant="ghost"
-              icon="i-heroicons-trash"
-              @click="showDeleteModal = true"
-            />
+
+            <!-- Add to Collection -->
+            <UDropdown :items="collectionMenuItems">
+              <UButton
+                color="neutral"
+                variant="outline"
+                icon="i-heroicons-folder-plus"
+                :loading="addingToCollection"
+              />
+            </UDropdown>
+
+            <template v-if="isOwner">
+              <UButton
+                :to="`/recipes/${recipe.id}/edit`"
+                color="neutral"
+                variant="outline"
+                icon="i-heroicons-pencil"
+              >
+                Edit
+              </UButton>
+              <UButton
+                color="error"
+                variant="ghost"
+                icon="i-heroicons-trash"
+                @click="showDeleteModal = true"
+              />
+            </template>
           </div>
         </div>
 
