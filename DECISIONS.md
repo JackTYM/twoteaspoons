@@ -72,4 +72,67 @@ This document tracks decisions made during autonomous development sessions for r
 
 ---
 
-*Last updated: 2026-02-28 (Phase 1 Complete)*
+## 2026-02-28 - Phase 2: Recipe Import
+
+### Decision 8: Import Parser Strategy
+**Choice:** Multi-level fallback parsing (JSON-LD → Microdata → HTML heuristics)
+**Rationale:** Most recipe sites use JSON-LD schema.org markup, but fallbacks needed for older sites. Cheerio for server-side HTML parsing is fast and reliable.
+**Status:** Implemented
+
+---
+
+## 2026-02-28 - Phase 3: Cook Mode
+
+### Decision 9: Wake Lock API
+**Choice:** Use Web Wake Lock API with graceful fallback
+**Rationale:** Prevents screen dimming during cooking. Falls back silently on unsupported browsers.
+**Status:** Implemented
+
+### Decision 10: Timer Management
+**Choice:** Multiple concurrent timers with Web Audio for alerts
+**Rationale:** Recipes often have overlapping timers. Audio alerts work even when tab is backgrounded.
+**Status:** Implemented
+
+---
+
+## 2026-02-28 - Phase 4: Shopping Lists
+
+### Decision 11: Ingredient Consolidation Algorithm
+**Choice:** Unit-aware consolidation with store section grouping
+**Rationale:** Smart unit conversion (tbsp to cups, oz to lbs) makes shopping easier. Section grouping follows typical grocery store layout.
+**Status:** Implemented
+
+### Decision 12: Optimistic UI for Item Toggle
+**Choice:** Immediate visual feedback with background API call
+**Rationale:** Checking items off should feel instant while shopping. Revert on error if API fails.
+**Status:** Implemented
+
+---
+
+## Overnight Session Summary (2026-02-28)
+
+**Phases Completed:**
+1. ✅ Phase 1: Foundation & Core Recipe Flow
+2. ✅ Phase 2: Recipe Import from URL
+3. ✅ Phase 3: Cook Mode with Timers
+4. ✅ Phase 4: Shopping Lists with Consolidation
+
+**Total Commits:** 7 (including this log)
+
+**All verification passing:**
+- `npm run typecheck` ✅
+- `npm run lint` ✅
+- `npm run test` ✅
+
+**Remaining Features (future phases):**
+- Meal planning calendar
+- Recipe forking/variations
+- Social features (follows, comments, ratings)
+- Collections/cookbooks
+- Print functionality (3x5 cards)
+- "What Can I Make" AI feature
+- Full auth integration (replace hardcoded userId)
+- Data export
+- PWA offline support
+
+*Last updated: 2026-02-28 (Phase 4 Complete)*
