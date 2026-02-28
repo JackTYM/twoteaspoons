@@ -127,6 +127,13 @@ async function handleDelete(): Promise<void> {
 
           <div class="flex gap-2 flex-shrink-0">
             <UButton
+              :to="`/recipes/${recipe.id}/cook`"
+              color="primary"
+              icon="i-heroicons-play"
+            >
+              Cook
+            </UButton>
+            <UButton
               :to="`/recipes/${recipe.id}/edit`"
               color="neutral"
               variant="outline"
