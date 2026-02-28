@@ -3,19 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TwoTeaspoons Branding - Draft C (Warmer Palette)</title>
+  <title>TwoTeaspoons Brand Kit</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      /* Base Colors - Warmer Browns & Creams */
       --cream-light: #FEF9F2;
       --cream: #F8EEE2;
       --cream-dark: #EBE0D0;
@@ -23,934 +18,479 @@
       --brown: #96724D;
       --brown-dark: #6B4D35;
       --brown-darkest: #4A3525;
-
-      /* Accent Colors - Warmer Kitchen Garden */
-      --sage: #8FA878;
-      --sage-light: #B5C9A3;
-      --sage-dark: #6E8759;
-      --rose: #E2A896;
-      --rose-light: #F0CBC0;
-      --rose-dark: #C98A78;
-      --butter: #F0D699;
-      --butter-light: #F7E8BF;
-      --butter-dark: #DCBE72;
-
-      /* Terracotta as additional warm accent */
-      --terracotta: #C97B5D;
       --terracotta-light: #E5A892;
+      --terracotta: #C97B5D;
       --terracotta-dark: #A65E42;
-
-      /* Semantic */
-      --text-primary: var(--brown-darkest);
-      --text-secondary: var(--brown);
-      --text-muted: var(--brown-light);
-      --bg-primary: var(--cream-light);
-      --bg-secondary: var(--cream);
-      --border: var(--cream-dark);
+      --sage-light: #B5C9A3;
+      --sage: #8FA878;
+      --sage-dark: #6E8759;
+      --butter-light: #F7E8BF;
+      --butter: #F0D699;
+      --butter-dark: #DCBE72;
+      --font-display: 'Fraunces', serif;
+      --font-body: 'Source Sans 3', sans-serif;
+      --shadow-sm: 0 1px 3px rgba(74, 53, 37, 0.08);
+      --shadow-md: 0 4px 12px rgba(74, 53, 37, 0.1);
+      --shadow-lg: 0 8px 24px rgba(74, 53, 37, 0.12);
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
     }
 
+    html { scroll-behavior: smooth; }
     body {
-      font-family: 'Source Sans 3', sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: var(--font-body);
+      background: var(--cream-light);
+      color: var(--brown-darkest);
       line-height: 1.6;
-      padding: 2rem;
+      -webkit-font-smoothing: antialiased;
     }
 
-    h1, h2, h3, h4 {
-      font-family: 'Fraunces', serif;
-      font-weight: 600;
-      line-height: 1.3;
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-    }
-
-    .header {
-      text-align: center;
-      margin-bottom: 3rem;
-      padding-bottom: 2rem;
-      border-bottom: 2px solid var(--border);
-    }
-
-    .header h1 {
-      font-size: 3rem;
-      color: var(--brown-dark);
-      margin-bottom: 0.5rem;
-    }
-
-    .header p {
-      color: var(--text-secondary);
-      font-size: 1.1rem;
-    }
-
-    .section {
-      margin-bottom: 3rem;
-    }
-
-    .section-title {
-      font-size: 1.5rem;
-      color: var(--brown-dark);
-      margin-bottom: 1.5rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    /* Color Palette */
-    .palette {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 1rem;
-    }
-
-    .color-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .color-group-title {
-      font-size: 0.875rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      margin-bottom: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .color-swatch {
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .color-preview {
-      height: 80px;
+    /* Hero */
+    .hero {
+      min-height: 50vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      padding: 4rem 2rem;
+      background: linear-gradient(180deg, var(--cream) 0%, var(--cream-light) 100%);
+      position: relative;
+      overflow: hidden;
     }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 80%, var(--terracotta-light) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 20%, var(--sage-light) 0%, transparent 40%);
+      opacity: 0.25;
+    }
+    .hero-logo { position: relative; width: 120px; height: 120px; margin-bottom: 1.5rem; }
+    .hero h1 { position: relative; font-family: var(--font-display); font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 600; color: var(--brown-darkest); }
+    .hero p { position: relative; color: var(--brown); font-size: 1.125rem; margin-top: 0.5rem; }
+    .hero-badge { position: relative; display: inline-flex; align-items: center; gap: 0.5rem; margin-top: 1.5rem; padding: 0.5rem 1.25rem; background: white; border-radius: 100px; box-shadow: var(--shadow-md); font-size: 0.875rem; color: var(--brown); }
 
-    .color-info {
-      background: white;
-      padding: 0.75rem;
-      text-align: center;
+    /* Nav */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(254, 249, 242, 0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--cream-dark);
+      padding: 1rem 2rem;
     }
+    .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; gap: 1.5rem; overflow-x: auto; scrollbar-width: none; }
+    .nav-inner::-webkit-scrollbar { display: none; }
+    .nav-link { font-size: 0.875rem; font-weight: 500; color: var(--brown); text-decoration: none; white-space: nowrap; padding: 0.25rem 0; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .nav-link:hover { color: var(--terracotta); border-color: var(--terracotta); }
 
-    .color-name {
-      font-weight: 500;
-      font-size: 0.875rem;
-      color: var(--text-primary);
-    }
+    /* Content */
+    .content { max-width: 1100px; margin: 0 auto; padding: 3rem 2rem; }
 
-    .color-hex {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      font-family: monospace;
-    }
+    /* Sections */
+    .section { margin-bottom: 4rem; scroll-margin-top: 80px; }
+    .section-header { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid var(--cream-dark); }
+    .section-num { font-family: var(--font-display); font-size: 0.8rem; font-weight: 500; color: var(--terracotta); background: var(--terracotta-light); padding: 0.25rem 0.625rem; border-radius: var(--radius-sm); }
+    .section-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; color: var(--brown-darkest); }
+    .section-desc { color: var(--brown); max-width: 580px; margin-bottom: 1.5rem; }
+
+    /* Logo */
+    .logo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; }
+    .logo-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 2rem; border-radius: var(--radius-lg); min-height: 180px; }
+    .logo-card img { max-width: 100px; height: auto; }
+    .logo-card.on-cream { background: var(--cream); }
+    .logo-card.on-white { background: white; box-shadow: var(--shadow-sm); }
+    .logo-card.on-dark { background: var(--brown-darkest); }
+    .logo-card.on-dark img { filter: brightness(0) invert(1); }
+    .logo-card.on-accent { background: var(--terracotta); }
+    .logo-card.on-accent img { filter: brightness(0) invert(1); }
+    .logo-label { margin-top: 1rem; font-size: 0.75rem; font-weight: 500; color: var(--brown-light); text-transform: uppercase; letter-spacing: 0.04em; }
+    .logo-card.on-dark .logo-label, .logo-card.on-accent .logo-label { color: rgba(255,255,255,0.65); }
+
+    .logo-sizes { display: flex; align-items: end; gap: 1.5rem; flex-wrap: wrap; padding: 1.5rem; background: white; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-top: 1rem; }
+    .logo-sizes > div { text-align: center; }
+    .logo-sizes img { display: block; margin-bottom: 0.5rem; }
+    .logo-sizes span { font-size: 0.7rem; color: var(--brown-light); }
+
+    /* Colors */
+    .color-group { margin-bottom: 2rem; }
+    .color-group-title { font-family: var(--font-display); font-size: 1rem; font-weight: 500; color: var(--brown-dark); margin-bottom: 1rem; }
+    .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.75rem; }
+    .color-swatch { border-radius: var(--radius-md); overflow: hidden; background: white; box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .color-swatch:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .color-preview { height: 70px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 500; }
+    .color-info { padding: 0.75rem; }
+    .color-name { font-weight: 600; font-size: 0.8rem; color: var(--brown-darkest); }
+    .color-hex { font-family: monospace; font-size: 0.7rem; color: var(--brown-light); }
+    .color-var { display: block; font-family: monospace; font-size: 0.65rem; color: var(--brown-light); margin-top: 0.25rem; opacity: 0.7; }
 
     /* Typography */
-    .type-sample {
-      background: white;
-      padding: 2rem;
-      border-radius: 16px;
-      margin-bottom: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    .type-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 0.5rem;
-    }
-
-    .display-text {
-      font-family: 'Fraunces', serif;
-      font-size: 2.5rem;
-      font-weight: 600;
-      color: var(--brown-dark);
-    }
-
-    .heading-text {
-      font-family: 'Fraunces', serif;
-      font-size: 1.75rem;
-      font-weight: 600;
-      color: var(--brown-dark);
-    }
-
-    .body-text {
-      font-size: 1rem;
-      color: var(--text-primary);
-      max-width: 600px;
-    }
-
-    .small-text {
-      font-size: 0.875rem;
-      color: var(--text-secondary);
-    }
+    .type-card { background: white; border-radius: var(--radius-lg); padding: 2rem; box-shadow: var(--shadow-sm); margin-bottom: 1rem; }
+    .type-meta { display: flex; gap: 2rem; flex-wrap: wrap; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--cream-dark); }
+    .type-meta-item { font-size: 0.7rem; color: var(--brown-light); }
+    .type-meta-item strong { display: block; font-size: 0.8rem; color: var(--brown-darkest); font-weight: 500; }
+    .type-display { font-family: var(--font-display); font-size: 2.5rem; font-weight: 600; color: var(--brown-darkest); line-height: 1.2; margin-bottom: 1rem; }
+    .type-heading { font-family: var(--font-display); font-size: 1.5rem; font-weight: 500; color: var(--brown-dark); margin-bottom: 1rem; }
+    .type-body { font-family: var(--font-body); font-size: 1rem; color: var(--brown-darkest); max-width: 60ch; margin-bottom: 1rem; }
+    .type-small { font-family: var(--font-body); font-size: 0.875rem; color: var(--brown); }
+    .type-scale { display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--cream-dark); }
+    .type-scale-row { display: flex; align-items: baseline; gap: 1rem; }
+    .type-scale-label { font-size: 0.7rem; color: var(--brown-light); width: 60px; flex-shrink: 0; }
+    .type-scale-sample { font-family: var(--font-display); color: var(--brown-darkest); }
 
     /* Buttons */
-    .button-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1rem;
-      align-items: center;
-      margin-bottom: 1.5rem;
-    }
+    .btn-group { background: white; border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1rem; }
+    .btn-group-title { font-size: 0.7rem; font-weight: 600; color: var(--brown-light); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 1rem; }
+    .btn-row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.75rem 1.5rem; font-family: var(--font-body); font-size: 0.9rem; font-weight: 600; border: 2px solid transparent; border-radius: var(--radius-md); cursor: pointer; transition: all 0.2s; }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: var(--brown-dark); color: var(--cream-light); }
+    .btn-primary:hover { background: var(--brown-darkest); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .btn-secondary { background: var(--cream); color: var(--brown-dark); border-color: var(--brown-light); }
+    .btn-secondary:hover { background: var(--cream-dark); }
+    .btn-terracotta { background: var(--terracotta); color: white; }
+    .btn-terracotta:hover { background: var(--terracotta-dark); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .btn-sage { background: var(--sage); color: white; }
+    .btn-sage:hover { background: var(--sage-dark); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .btn-outline { background: transparent; color: var(--brown-dark); border-color: var(--brown); }
+    .btn-outline:hover { background: var(--brown-dark); color: var(--cream-light); }
+    .btn-ghost { background: transparent; color: var(--brown); border: none; }
+    .btn-ghost:hover { background: var(--cream); }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.8rem; }
+    .btn-lg { padding: 1rem 2rem; font-size: 1rem; border-radius: var(--radius-lg); }
+    .btn-icon { width: 44px; height: 44px; padding: 0; }
+    .btn-icon.btn-sm { width: 36px; height: 36px; }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0.75rem 1.5rem;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 0.9375rem;
-      cursor: pointer;
-      border: 2px solid transparent;
-      transition: all 0.2s ease;
-      font-family: inherit;
-    }
-
-    .btn-primary {
-      background: var(--brown-dark);
-      color: var(--cream-light);
-    }
-
-    .btn-primary:hover {
-      background: var(--brown-darkest);
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary {
-      background: var(--cream);
-      color: var(--brown-dark);
-      border-color: var(--brown-light);
-    }
-
-    .btn-secondary:hover {
-      background: var(--cream-dark);
-    }
-
-    .btn-sage {
-      background: var(--sage);
-      color: white;
-    }
-
-    .btn-sage:hover {
-      background: var(--sage-dark);
-      transform: translateY(-1px);
-    }
-
-    .btn-terracotta {
-      background: var(--terracotta);
-      color: white;
-    }
-
-    .btn-terracotta:hover {
-      background: var(--terracotta-dark);
-      transform: translateY(-1px);
-    }
-
-    .btn-rose {
-      background: var(--rose);
-      color: var(--brown-darkest);
-    }
-
-    .btn-rose:hover {
-      background: var(--rose-dark);
-      color: white;
-      transform: translateY(-1px);
-    }
-
-    .btn-outline {
-      background: transparent;
-      color: var(--brown-dark);
-      border-color: var(--brown);
-    }
-
-    .btn-outline:hover {
-      background: var(--brown-dark);
-      color: var(--cream-light);
-    }
-
-    .btn-ghost {
-      background: transparent;
-      color: var(--brown);
-    }
-
-    .btn-ghost:hover {
-      background: var(--cream);
-    }
-
-    .btn-sm {
-      padding: 0.5rem 1rem;
-      font-size: 0.875rem;
-      border-radius: 10px;
-    }
-
-    .btn-lg {
-      padding: 1rem 2rem;
-      font-size: 1rem;
-      border-radius: 14px;
-    }
+    /* Forms */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; }
+    .form-card { background: white; border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm); }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-label { display: block; font-weight: 600; font-size: 0.8rem; color: var(--brown-darkest); margin-bottom: 0.5rem; }
+    .form-hint { font-size: 0.7rem; color: var(--brown-light); margin-top: 0.25rem; }
+    .form-input { width: 100%; padding: 0.75rem 1rem; font-family: var(--font-body); font-size: 1rem; color: var(--brown-darkest); background: white; border: 2px solid var(--cream-dark); border-radius: var(--radius-md); transition: all 0.2s; }
+    .form-input::placeholder { color: var(--brown-light); }
+    .form-input:hover { border-color: var(--brown-light); }
+    .form-input:focus { outline: none; border-color: var(--terracotta); box-shadow: 0 0 0 4px var(--terracotta-light); }
+    .form-input.error { border-color: var(--terracotta); background: #FEF5F3; }
+    .form-input.success { border-color: var(--sage); background: #F5F9F3; }
+    textarea.form-input { min-height: 100px; resize: vertical; }
+    .form-select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2396724D'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; }
+    .form-checkbox { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem; }
+    .form-checkbox input { width: 18px; height: 18px; accent-color: var(--terracotta); }
 
     /* Tags */
-    .tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-    }
+    .tags-card { background: white; border-radius: var(--radius-lg); padding: 1.5rem; box-shadow: var(--shadow-sm); margin-bottom: 1rem; }
+    .tags-card-title { font-size: 0.7rem; font-weight: 600; color: var(--brown-light); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 1rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .tag { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.35rem 0.875rem; font-size: 0.8rem; font-weight: 600; border-radius: 100px; transition: transform 0.2s; }
+    .tag:hover { transform: translateY(-1px); }
+    .tag-sage { background: var(--sage-light); color: var(--sage-dark); }
+    .tag-terracotta { background: var(--terracotta-light); color: var(--terracotta-dark); }
+    .tag-butter { background: var(--butter-light); color: var(--brown); }
+    .tag-brown { background: var(--cream-dark); color: var(--brown-dark); }
+    .tag-outline { background: transparent; border: 1.5px solid var(--brown-light); color: var(--brown); }
+    .tag-sm { padding: 0.25rem 0.625rem; font-size: 0.7rem; }
+    .tag-lg { padding: 0.5rem 1rem; font-size: 0.875rem; }
 
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      padding: 0.375rem 0.875rem;
-      border-radius: 9999px;
-      font-size: 0.8125rem;
-      font-weight: 600;
-    }
-
-    .tag-sage {
-      background: var(--sage-light);
-      color: var(--sage-dark);
-    }
-
-    .tag-rose {
-      background: var(--rose-light);
-      color: var(--rose-dark);
-    }
-
-    .tag-terracotta {
-      background: var(--terracotta-light);
-      color: var(--terracotta-dark);
-    }
-
-    .tag-butter {
-      background: var(--butter-light);
-      color: var(--brown);
-    }
-
-    .tag-brown {
-      background: var(--cream-dark);
-      color: var(--brown-dark);
-    }
+    /* Alerts */
+    .alert { display: flex; align-items: flex-start; gap: 0.75rem; padding: 1rem 1.25rem; border-radius: var(--radius-md); margin-bottom: 0.75rem; border-left: 4px solid; }
+    .alert-icon { flex-shrink: 0; font-size: 1rem; }
+    .alert-content { flex: 1; }
+    .alert-title { font-weight: 600; margin-bottom: 0.125rem; }
+    .alert-message { font-size: 0.9rem; opacity: 0.9; }
+    .alert-success { background: #F5F9F3; border-color: var(--sage); color: var(--sage-dark); }
+    .alert-warning { background: #FFFBF0; border-color: var(--butter-dark); color: var(--brown); }
+    .alert-error { background: #FEF5F3; border-color: var(--terracotta); color: var(--terracotta-dark); }
+    .alert-info { background: var(--cream); border-color: var(--brown-light); color: var(--brown-dark); }
 
     /* Cards */
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 1.5rem;
-    }
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; }
+    .card { background: white; border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-sm); transition: all 0.3s; }
+    .card:hover { transform: translateY(-5px); box-shadow: var(--shadow-lg); }
+    .card-image { position: relative; height: 180px; background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%); display: flex; align-items: center; justify-content: center; }
+    .card-image::before { content: '🍳'; font-size: 3.5rem; opacity: 0.3; }
+    .card-badge { position: absolute; top: 0.75rem; right: 0.75rem; background: white; padding: 0.25rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.7rem; font-weight: 600; color: var(--terracotta); box-shadow: var(--shadow-sm); }
+    .card-fav { position: absolute; top: 0.75rem; left: 0.75rem; width: 32px; height: 32px; background: white; border: none; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; box-shadow: var(--shadow-sm); transition: all 0.2s; }
+    .card-fav:hover { background: var(--terracotta-light); transform: scale(1.1); }
+    .card-fav.active { color: var(--terracotta); }
+    .card-content { padding: 1.25rem; }
+    .card-title { font-family: var(--font-display); font-size: 1.125rem; font-weight: 600; color: var(--brown-darkest); margin-bottom: 0.5rem; }
+    .card-meta { display: flex; gap: 1rem; font-size: 0.8rem; color: var(--brown-light); margin-bottom: 0.75rem; }
+    .card-rating { display: flex; align-items: center; gap: 0.25rem; margin-bottom: 0.75rem; }
+    .star { color: var(--butter); font-size: 0.9rem; }
+    .star.empty { color: var(--cream-dark); }
+    .rating-count { font-size: 0.75rem; color: var(--brown-light); margin-left: 0.25rem; }
+    .card-tags { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 
-    .card {
-      background: white;
-      border-radius: 20px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    }
-
-    .card-image {
-      height: 180px;
-      background: linear-gradient(135deg, var(--cream) 0%, var(--cream-dark) 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--brown-light);
-      font-size: 0.875rem;
-    }
-
-    .card-content {
-      padding: 1.25rem;
-    }
-
-    .card-title {
-      font-family: 'Fraunces', serif;
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: var(--brown-dark);
-      margin-bottom: 0.5rem;
-    }
-
-    .card-meta {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      margin-bottom: 0.75rem;
-    }
-
-    .card-tags {
-      display: flex;
-      gap: 0.375rem;
-    }
-
-    .card-tag {
-      font-size: 0.75rem;
-      padding: 0.25rem 0.5rem;
-    }
-
-    /* Form Elements */
-    .form-group {
-      margin-bottom: 1.5rem;
-    }
-
-    .form-label {
-      display: block;
-      font-weight: 600;
-      font-size: 0.875rem;
-      color: var(--text-primary);
-      margin-bottom: 0.5rem;
-    }
-
-    .form-input {
-      width: 100%;
-      max-width: 400px;
-      padding: 0.875rem 1rem;
-      border: 2px solid var(--border);
-      border-radius: 12px;
-      font-size: 1rem;
-      font-family: inherit;
-      background: white;
-      color: var(--text-primary);
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .form-input:focus {
-      outline: none;
-      border-color: var(--terracotta);
-      box-shadow: 0 0 0 4px var(--terracotta-light);
-    }
-
-    .form-input::placeholder {
-      color: var(--text-muted);
-    }
-
-    .form-textarea {
-      min-height: 120px;
-      resize: vertical;
-    }
-
-    /* Logo Concept */
-    .logo-concept {
-      background: white;
-      padding: 3rem;
-      border-radius: 20px;
-      text-align: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-
-    .logo-placeholder {
-      width: 120px;
-      height: 120px;
-      margin: 0 auto 1.5rem;
-      border-radius: 50%;
-      border: 3px solid var(--terracotta);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-
-    .logo-spoons {
-      font-size: 2.5rem;
-      color: var(--terracotta);
-    }
-
-    .logo-text {
-      font-family: 'Fraunces', serif;
-      font-size: 2rem;
-      font-weight: 600;
-      color: var(--brown-dark);
-      margin-bottom: 0.5rem;
-    }
-
-    .logo-tagline {
-      color: var(--text-secondary);
-      font-size: 1rem;
-    }
-
-    /* Navigation Preview */
-    .nav-preview {
-      background: white;
-      padding: 1rem 2rem;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      margin-bottom: 1.5rem;
-    }
-
-    .nav-brand {
-      font-family: 'Fraunces', serif;
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--brown-dark);
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-    }
-
-    .nav-link {
-      color: var(--text-secondary);
-      text-decoration: none;
-      font-weight: 600;
-      transition: color 0.2s ease;
-    }
-
-    .nav-link:hover {
-      color: var(--terracotta);
-    }
-
-    .nav-link.active {
-      color: var(--terracotta);
-    }
-
-    /* Rating Stars */
-    .rating {
-      display: flex;
-      gap: 0.25rem;
-    }
-
-    .star {
-      color: var(--butter);
-      font-size: 1.25rem;
-    }
-
-    .star.empty {
-      color: var(--cream-dark);
-    }
-
-    /* Alert/Notice */
-    .alert {
-      padding: 1rem 1.25rem;
-      border-radius: 12px;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: flex-start;
-      gap: 0.75rem;
-    }
-
-    .alert-sage {
-      background: var(--sage-light);
-      color: var(--sage-dark);
-    }
-
-    .alert-rose {
-      background: var(--rose-light);
-      color: var(--rose-dark);
-    }
-
-    .alert-butter {
-      background: var(--butter-light);
-      color: var(--brown);
-    }
-
-    .alert-terracotta {
-      background: var(--terracotta-light);
-      color: var(--terracotta-dark);
-    }
-
-    /* Comparison note */
-    .comparison-note {
-      background: var(--terracotta-light);
-      padding: 1.5rem;
-      border-radius: 12px;
-      margin-top: 2rem;
-    }
-
-    .comparison-note h3 {
-      font-size: 1.125rem;
-      margin-bottom: 0.75rem;
-      color: var(--terracotta-dark);
-    }
-
-    .comparison-note ul {
-      margin-left: 1.25rem;
-      color: var(--brown-dark);
-    }
-
-    .comparison-note li {
-      margin-bottom: 0.5rem;
-    }
+    /* Footer */
+    .footer { background: var(--brown-darkest); color: var(--cream); padding: 3rem 2rem; margin-top: 3rem; text-align: center; }
+    .footer-logo { width: 50px; height: 50px; filter: brightness(0) invert(1); margin-bottom: 1rem; }
+    .footer h2 { font-family: var(--font-display); font-size: 1.25rem; font-weight: 500; margin-bottom: 0.25rem; }
+    .footer p { color: var(--brown-light); font-size: 0.875rem; }
+    .footer-note { margin-top: 1.5rem; font-size: 0.75rem; opacity: 0.6; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>TwoTeaspoons</h1>
-      <p>Draft C - Warmer Palette with Terracotta Accent</p>
-    </header>
 
-    <!-- Color Palette -->
-    <section class="section">
-      <h2 class="section-title">Color Palette</h2>
+<header class="hero">
+  <img src="../../public/images/logo.svg" alt="TwoTeaspoons" class="hero-logo">
+  <h1>TwoTeaspoons</h1>
+  <p>Brand Guidelines & Design System</p>
+  <span class="hero-badge">🥄 Recipes worth sharing</span>
+</header>
 
-      <div class="color-group">
-        <div class="color-group-title">Base Colors - Warmer Browns & Creams</div>
-        <div class="palette">
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--cream-light)"></div>
-            <div class="color-info">
-              <div class="color-name">Cream Light</div>
-              <div class="color-hex">#FEF9F2</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--cream)"></div>
-            <div class="color-info">
-              <div class="color-name">Cream</div>
-              <div class="color-hex">#F8EEE2</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--cream-dark)"></div>
-            <div class="color-info">
-              <div class="color-name">Cream Dark</div>
-              <div class="color-hex">#EBE0D0</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--brown-light)"></div>
-            <div class="color-info">
-              <div class="color-name">Brown Light</div>
-              <div class="color-hex">#CBA67A</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--brown)"></div>
-            <div class="color-info">
-              <div class="color-name">Brown</div>
-              <div class="color-hex">#96724D</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--brown-dark); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Brown Dark</div>
-              <div class="color-hex">#6B4D35</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--brown-darkest); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Brown Darkest</div>
-              <div class="color-hex">#4A3525</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="color-group">
-        <div class="color-group-title">Accent Colors - Warmer Kitchen Garden + Terracotta</div>
-        <div class="palette">
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--sage-light)"></div>
-            <div class="color-info">
-              <div class="color-name">Sage Light</div>
-              <div class="color-hex">#B5C9A3</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--sage); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Sage</div>
-              <div class="color-hex">#8FA878</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--sage-dark); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Sage Dark</div>
-              <div class="color-hex">#6E8759</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--terracotta-light)"></div>
-            <div class="color-info">
-              <div class="color-name">Terracotta Light</div>
-              <div class="color-hex">#E5A892</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--terracotta); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Terracotta</div>
-              <div class="color-hex">#C97B5D</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--terracotta-dark); color: white">Text</div>
-            <div class="color-info">
-              <div class="color-name">Terracotta Dark</div>
-              <div class="color-hex">#A65E42</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--butter-light)"></div>
-            <div class="color-info">
-              <div class="color-name">Butter Light</div>
-              <div class="color-hex">#F7E8BF</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--butter)"></div>
-            <div class="color-info">
-              <div class="color-name">Butter</div>
-              <div class="color-hex">#F0D699</div>
-            </div>
-          </div>
-          <div class="color-swatch">
-            <div class="color-preview" style="background: var(--butter-dark)"></div>
-            <div class="color-info">
-              <div class="color-name">Butter Dark</div>
-              <div class="color-hex">#DCBE72</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Typography -->
-    <section class="section">
-      <h2 class="section-title">Typography</h2>
-
-      <div class="type-sample">
-        <div class="type-label">Display / Hero - Fraunces 600</div>
-        <div class="display-text">Fresh from the Kitchen</div>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Heading - Fraunces 600</div>
-        <div class="heading-text">Grandma's Classic Apple Pie</div>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Body - Source Sans 3 400</div>
-        <p class="body-text">A cherished family recipe passed down through generations. This apple pie features a flaky, buttery crust and a perfectly spiced filling that fills your kitchen with the most wonderful aroma.</p>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Small / Meta - Source Sans 3 400</div>
-        <p class="small-text">Prep: 45 min  |  Cook: 55 min  |  Serves 8  |  By Sarah Mitchell</p>
-      </div>
-
-      <div class="comparison-note">
-        <h3>Draft C Differences</h3>
-        <ul>
-          <li><strong>Warmer base:</strong> Browns shifted warmer/more orange undertones</li>
-          <li><strong>Terracotta accent:</strong> Replaces dusty rose - more earthy, Mediterranean feel</li>
-          <li><strong>Active state:</strong> Terracotta used for hover/active states instead of sage</li>
-          <li>Overall feel: More rustic, farmhouse kitchen, slightly bolder</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- Logo Concept -->
-    <section class="section">
-      <h2 class="section-title">Logo Concept</h2>
-
-      <div class="logo-concept">
-        <div class="logo-placeholder">
-          <div class="logo-spoons">🥄🥄</div>
-        </div>
-        <div class="logo-text">TwoTeaspoons</div>
-        <div class="logo-tagline">Recipes worth sharing</div>
-        <p style="margin-top: 1.5rem; color: var(--text-muted); font-size: 0.875rem;">
-          Logo placeholder - Final will be illustrated keyring with two playful teaspoons
-        </p>
-      </div>
-    </section>
-
-    <!-- Navigation Preview -->
-    <section class="section">
-      <h2 class="section-title">Navigation</h2>
-
-      <div class="nav-preview">
-        <div class="nav-brand">TwoTeaspoons</div>
-        <div class="nav-links">
-          <a href="#" class="nav-link active">Recipes</a>
-          <a href="#" class="nav-link">Collections</a>
-          <a href="#" class="nav-link">Meal Plan</a>
-          <a href="#" class="nav-link">Shopping List</a>
-        </div>
-        <button class="btn btn-terracotta btn-sm">Sign In</button>
-      </div>
-    </section>
-
-    <!-- Buttons -->
-    <section class="section">
-      <h2 class="section-title">Buttons</h2>
-
-      <div class="type-sample">
-        <div class="type-label">Primary Actions</div>
-        <div class="button-row">
-          <button class="btn btn-primary">Save Recipe</button>
-          <button class="btn btn-primary btn-lg">Create Recipe</button>
-          <button class="btn btn-primary btn-sm">Add</button>
-        </div>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Secondary & Outline</div>
-        <div class="button-row">
-          <button class="btn btn-secondary">Cancel</button>
-          <button class="btn btn-outline">View All</button>
-          <button class="btn btn-ghost">Learn More</button>
-        </div>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Accent Colors</div>
-        <div class="button-row">
-          <button class="btn btn-sage">Add to Meal Plan</button>
-          <button class="btn btn-terracotta">Add to Favorites</button>
-          <button class="btn btn-rose">View Collection</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tags -->
-    <section class="section">
-      <h2 class="section-title">Tags & Labels</h2>
-
-      <div class="type-sample">
-        <div class="type-label">Category Tags</div>
-        <div class="tags">
-          <span class="tag tag-sage">Vegetarian</span>
-          <span class="tag tag-sage">Quick & Easy</span>
-          <span class="tag tag-terracotta">Dessert</span>
-          <span class="tag tag-butter">Breakfast</span>
-          <span class="tag tag-brown">Family Favorite</span>
-        </div>
-      </div>
-
-      <div class="type-sample">
-        <div class="type-label">Dietary & Allergen Tags</div>
-        <div class="tags">
-          <span class="tag tag-sage">Gluten-Free</span>
-          <span class="tag tag-sage">Dairy-Free</span>
-          <span class="tag tag-terracotta">Contains Nuts</span>
-          <span class="tag tag-butter">Vegan</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- Alerts -->
-    <section class="section">
-      <h2 class="section-title">Alerts & Notices</h2>
-
-      <div class="alert alert-sage">
-        <span>✓</span>
-        <div><strong>Recipe saved!</strong> You can find it in your collection.</div>
-      </div>
-
-      <div class="alert alert-butter">
-        <span>⚠</span>
-        <div><strong>Scaling notice:</strong> Doubling this recipe may affect baking time. Check doneness 5 minutes early.</div>
-      </div>
-
-      <div class="alert alert-terracotta">
-        <span>!</span>
-        <div><strong>Allergen alert:</strong> This recipe contains tree nuts and dairy.</div>
-      </div>
-    </section>
-
-    <!-- Form Elements -->
-    <section class="section">
-      <h2 class="section-title">Form Elements</h2>
-
-      <div class="type-sample">
-        <div class="form-group">
-          <label class="form-label">Recipe Title</label>
-          <input type="text" class="form-input" placeholder="Enter recipe name...">
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Description</label>
-          <textarea class="form-input form-textarea" placeholder="Describe your recipe..."></textarea>
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Prep Time (minutes)</label>
-          <input type="number" class="form-input" style="max-width: 150px" placeholder="30">
-        </div>
-      </div>
-    </section>
-
-    <!-- Recipe Cards -->
-    <section class="section">
-      <h2 class="section-title">Recipe Cards</h2>
-
-      <div class="cards-grid">
-        <div class="card">
-          <div class="card-image">[Recipe Photo]</div>
-          <div class="card-content">
-            <div class="card-title">Honey Glazed Carrots</div>
-            <div class="card-meta">25 min  |  4 servings</div>
-            <div class="rating">
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star empty">★</span>
-            </div>
-            <div class="card-tags" style="margin-top: 0.75rem">
-              <span class="tag tag-sage card-tag">Vegetarian</span>
-              <span class="tag tag-butter card-tag">Side Dish</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-image">[Recipe Photo]</div>
-          <div class="card-content">
-            <div class="card-title">Classic Beef Stew</div>
-            <div class="card-meta">2 hr 30 min  |  6 servings</div>
-            <div class="rating">
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-            </div>
-            <div class="card-tags" style="margin-top: 0.75rem">
-              <span class="tag tag-terracotta card-tag">Comfort Food</span>
-              <span class="tag tag-brown card-tag">Dinner</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-image">[Recipe Photo]</div>
-          <div class="card-content">
-            <div class="card-title">Lemon Blueberry Muffins</div>
-            <div class="card-meta">45 min  |  12 muffins</div>
-            <div class="rating">
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star">★</span>
-              <span class="star empty">★</span>
-            </div>
-            <div class="card-tags" style="margin-top: 0.75rem">
-              <span class="tag tag-butter card-tag">Breakfast</span>
-              <span class="tag tag-sage card-tag">Baking</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#logo" class="nav-link">Logo</a>
+    <a href="#colors" class="nav-link">Colors</a>
+    <a href="#typography" class="nav-link">Typography</a>
+    <a href="#buttons" class="nav-link">Buttons</a>
+    <a href="#forms" class="nav-link">Forms</a>
+    <a href="#tags" class="nav-link">Tags</a>
+    <a href="#alerts" class="nav-link">Alerts</a>
+    <a href="#cards" class="nav-link">Cards</a>
   </div>
+</nav>
+
+<main class="content">
+
+  <section id="logo" class="section">
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2 class="section-title">Logo</h2>
+    </div>
+    <p class="section-desc">Two teaspoons form the number "2" - simple, memorable, and perfectly suited for a recipe platform.</p>
+    <div class="logo-grid">
+      <div class="logo-card on-cream"><img src="../../public/images/logo.svg" alt="Logo"><span class="logo-label">On Cream</span></div>
+      <div class="logo-card on-white"><img src="../../public/images/logo.svg" alt="Logo"><span class="logo-label">On White</span></div>
+      <div class="logo-card on-dark"><img src="../../public/images/logo.svg" alt="Logo"><span class="logo-label">On Dark</span></div>
+      <div class="logo-card on-accent"><img src="../../public/images/logo.svg" alt="Logo"><span class="logo-label">On Terracotta</span></div>
+    </div>
+    <div class="logo-sizes">
+      <div><img src="../../public/images/logo.svg" width="80" height="80"><span>80px</span></div>
+      <div><img src="../../public/images/logo.svg" width="48" height="48"><span>48px</span></div>
+      <div><img src="../../public/images/logo.svg" width="32" height="32"><span>32px</span></div>
+      <div><img src="../../public/images/logo.svg" width="24" height="24"><span>24px</span></div>
+      <div><img src="../../public/images/logo.svg" width="16" height="16"><span>16px</span></div>
+    </div>
+  </section>
+
+  <section id="colors" class="section">
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2 class="section-title">Color Palette</h2>
+    </div>
+    <p class="section-desc">Warm, earthy tones create the feeling of a cozy kitchen. Browns and creams form the foundation; terracotta, sage, and butter provide accent.</p>
+    <div class="color-group">
+      <h3 class="color-group-title">Base Colors</h3>
+      <div class="color-grid">
+        <div class="color-swatch"><div class="color-preview" style="background:#FEF9F2"></div><div class="color-info"><div class="color-name">Cream Light</div><div class="color-hex">#FEF9F2</div><span class="color-var">--cream-light</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#F8EEE2"></div><div class="color-info"><div class="color-name">Cream</div><div class="color-hex">#F8EEE2</div><span class="color-var">--cream</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#EBE0D0"></div><div class="color-info"><div class="color-name">Cream Dark</div><div class="color-hex">#EBE0D0</div><span class="color-var">--cream-dark</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#CBA67A"></div><div class="color-info"><div class="color-name">Brown Light</div><div class="color-hex">#CBA67A</div><span class="color-var">--brown-light</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#96724D"></div><div class="color-info"><div class="color-name">Brown</div><div class="color-hex">#96724D</div><span class="color-var">--brown</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#6B4D35;color:white">Aa</div><div class="color-info"><div class="color-name">Brown Dark</div><div class="color-hex">#6B4D35</div><span class="color-var">--brown-dark</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#4A3525;color:white">Aa</div><div class="color-info"><div class="color-name">Brown Darkest</div><div class="color-hex">#4A3525</div><span class="color-var">--brown-darkest</span></div></div>
+      </div>
+    </div>
+    <div class="color-group">
+      <h3 class="color-group-title">Accent Colors</h3>
+      <div class="color-grid">
+        <div class="color-swatch"><div class="color-preview" style="background:#E5A892"></div><div class="color-info"><div class="color-name">Terracotta Light</div><div class="color-hex">#E5A892</div><span class="color-var">--terracotta-light</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#C97B5D;color:white">Aa</div><div class="color-info"><div class="color-name">Terracotta</div><div class="color-hex">#C97B5D</div><span class="color-var">--terracotta</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#A65E42;color:white">Aa</div><div class="color-info"><div class="color-name">Terracotta Dark</div><div class="color-hex">#A65E42</div><span class="color-var">--terracotta-dark</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#B5C9A3"></div><div class="color-info"><div class="color-name">Sage Light</div><div class="color-hex">#B5C9A3</div><span class="color-var">--sage-light</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#8FA878;color:white">Aa</div><div class="color-info"><div class="color-name">Sage</div><div class="color-hex">#8FA878</div><span class="color-var">--sage</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#6E8759;color:white">Aa</div><div class="color-info"><div class="color-name">Sage Dark</div><div class="color-hex">#6E8759</div><span class="color-var">--sage-dark</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#F7E8BF"></div><div class="color-info"><div class="color-name">Butter Light</div><div class="color-hex">#F7E8BF</div><span class="color-var">--butter-light</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#F0D699"></div><div class="color-info"><div class="color-name">Butter</div><div class="color-hex">#F0D699</div><span class="color-var">--butter</span></div></div>
+        <div class="color-swatch"><div class="color-preview" style="background:#DCBE72"></div><div class="color-info"><div class="color-name">Butter Dark</div><div class="color-hex">#DCBE72</div><span class="color-var">--butter-dark</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="typography" class="section">
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2 class="section-title">Typography</h2>
+    </div>
+    <p class="section-desc">Fraunces brings warmth to headings; Source Sans 3 keeps body text clean and readable.</p>
+    <div class="type-card">
+      <div class="type-meta">
+        <div class="type-meta-item"><strong>Fraunces</strong>Display & Headings</div>
+        <div class="type-meta-item"><strong>Weights</strong>300–700</div>
+      </div>
+      <div class="type-display">Fresh from the Kitchen</div>
+      <div class="type-heading">Grandma's Classic Apple Pie</div>
+      <div class="type-scale">
+        <div class="type-scale-row"><span class="type-scale-label">Display</span><span class="type-scale-sample" style="font-size:2.5rem;font-weight:600">48px / 600</span></div>
+        <div class="type-scale-row"><span class="type-scale-label">H1</span><span class="type-scale-sample" style="font-size:2rem;font-weight:600">32px / 600</span></div>
+        <div class="type-scale-row"><span class="type-scale-label">H2</span><span class="type-scale-sample" style="font-size:1.5rem;font-weight:500">24px / 500</span></div>
+        <div class="type-scale-row"><span class="type-scale-label">H3</span><span class="type-scale-sample" style="font-size:1.25rem;font-weight:500">20px / 500</span></div>
+      </div>
+    </div>
+    <div class="type-card">
+      <div class="type-meta">
+        <div class="type-meta-item"><strong>Source Sans 3</strong>Body & UI</div>
+        <div class="type-meta-item"><strong>Weights</strong>300–700</div>
+      </div>
+      <p class="type-body">A cherished family recipe passed down through generations. This apple pie features a flaky, buttery crust and a perfectly spiced filling.</p>
+      <p class="type-small">Prep: 45 min · Cook: 55 min · Serves 8 · By Sarah Mitchell</p>
+    </div>
+  </section>
+
+  <section id="buttons" class="section">
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2 class="section-title">Buttons</h2>
+    </div>
+    <div class="btn-group">
+      <div class="btn-group-title">Primary & Secondary</div>
+      <div class="btn-row">
+        <button class="btn btn-primary">Save Recipe</button>
+        <button class="btn btn-secondary">Cancel</button>
+        <button class="btn btn-outline">View All</button>
+        <button class="btn btn-ghost">Learn More</button>
+      </div>
+    </div>
+    <div class="btn-group">
+      <div class="btn-group-title">Accent Colors</div>
+      <div class="btn-row">
+        <button class="btn btn-terracotta">♥ Add to Favorites</button>
+        <button class="btn btn-sage">+ Meal Plan</button>
+      </div>
+    </div>
+    <div class="btn-group">
+      <div class="btn-group-title">Sizes</div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary">Default</button>
+        <button class="btn btn-primary btn-lg">Large</button>
+      </div>
+    </div>
+    <div class="btn-group">
+      <div class="btn-group-title">Icon Buttons</div>
+      <div class="btn-row">
+        <button class="btn btn-primary btn-icon">♥</button>
+        <button class="btn btn-secondary btn-icon">✎</button>
+        <button class="btn btn-outline btn-icon">⋯</button>
+        <button class="btn btn-ghost btn-icon btn-sm">×</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="forms" class="section">
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2 class="section-title">Form Elements</h2>
+    </div>
+    <div class="form-grid">
+      <div class="form-card">
+        <div class="form-group"><label class="form-label">Recipe Title</label><input type="text" class="form-input" placeholder="Enter recipe name..."></div>
+        <div class="form-group"><label class="form-label">Description</label><textarea class="form-input" placeholder="Describe your recipe..."></textarea></div>
+        <div class="form-group"><label class="form-label">Category</label><select class="form-input form-select"><option>Select...</option><option>Breakfast</option><option>Dinner</option><option>Dessert</option></select></div>
+      </div>
+      <div class="form-card">
+        <div class="form-group"><label class="form-label">With Error</label><input type="text" class="form-input error" value="Invalid"><span class="form-hint" style="color:var(--terracotta)">Please enter a valid name</span></div>
+        <div class="form-group"><label class="form-label">With Success</label><input type="text" class="form-input success" value="Perfect Pancakes"><span class="form-hint" style="color:var(--sage)">✓ Looks great!</span></div>
+        <div class="form-group"><label class="form-label">Options</label><label class="form-checkbox"><input type="checkbox" checked> Vegetarian</label><label class="form-checkbox"><input type="checkbox"> Vegan</label><label class="form-checkbox"><input type="checkbox" checked> Gluten-Free</label></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tags" class="section">
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2 class="section-title">Tags & Labels</h2>
+    </div>
+    <div class="tags-card">
+      <div class="tags-card-title">Category Tags</div>
+      <div class="tags">
+        <span class="tag tag-sage">Vegetarian</span>
+        <span class="tag tag-sage">Quick & Easy</span>
+        <span class="tag tag-terracotta">Comfort Food</span>
+        <span class="tag tag-butter">Breakfast</span>
+        <span class="tag tag-brown">Family Favorite</span>
+        <span class="tag tag-outline">Baking</span>
+      </div>
+    </div>
+    <div class="tags-card">
+      <div class="tags-card-title">Dietary & Allergens</div>
+      <div class="tags">
+        <span class="tag tag-sage">✓ Gluten-Free</span>
+        <span class="tag tag-sage">✓ Dairy-Free</span>
+        <span class="tag tag-terracotta">⚠ Contains Nuts</span>
+        <span class="tag tag-terracotta">⚠ Contains Eggs</span>
+      </div>
+    </div>
+    <div class="tags-card">
+      <div class="tags-card-title">Sizes</div>
+      <div class="tags">
+        <span class="tag tag-sage tag-sm">Small</span>
+        <span class="tag tag-sage">Default</span>
+        <span class="tag tag-sage tag-lg">Large</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="alerts" class="section">
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2 class="section-title">Alerts & Notices</h2>
+    </div>
+    <div class="alert alert-success"><span class="alert-icon">✓</span><div class="alert-content"><div class="alert-title">Recipe saved!</div><div class="alert-message">Added to your collection.</div></div></div>
+    <div class="alert alert-warning"><span class="alert-icon">⚠</span><div class="alert-content"><div class="alert-title">Scaling notice</div><div class="alert-message">Doubling may affect baking time.</div></div></div>
+    <div class="alert alert-error"><span class="alert-icon">!</span><div class="alert-content"><div class="alert-title">Allergen alert</div><div class="alert-message">Contains tree nuts and dairy.</div></div></div>
+    <div class="alert alert-info"><span class="alert-icon">ℹ</span><div class="alert-content"><div class="alert-title">Pro tip</div><div class="alert-message">Let dough rest 30 min before rolling.</div></div></div>
+  </section>
+
+  <section id="cards" class="section">
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2 class="section-title">Recipe Cards</h2>
+    </div>
+    <div class="cards-grid">
+      <div class="card">
+        <div class="card-image"><button class="card-fav">♡</button><span class="card-badge">30 min</span></div>
+        <div class="card-content">
+          <h3 class="card-title">Honey Glazed Carrots</h3>
+          <div class="card-meta"><span>🕐 25 min</span><span>👥 4 servings</span></div>
+          <div class="card-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star empty">★</span><span class="rating-count">(128)</span></div>
+          <div class="card-tags"><span class="tag tag-sage tag-sm">Vegetarian</span><span class="tag tag-butter tag-sm">Side</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-image"><button class="card-fav active">♥</button><span class="card-badge">2.5 hrs</span></div>
+        <div class="card-content">
+          <h3 class="card-title">Classic Beef Stew</h3>
+          <div class="card-meta"><span>🕐 2h 30m</span><span>👥 6 servings</span></div>
+          <div class="card-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="rating-count">(342)</span></div>
+          <div class="card-tags"><span class="tag tag-terracotta tag-sm">Comfort</span><span class="tag tag-brown tag-sm">Dinner</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-image"><button class="card-fav">♡</button><span class="card-badge">45 min</span></div>
+        <div class="card-content">
+          <h3 class="card-title">Lemon Blueberry Muffins</h3>
+          <div class="card-meta"><span>🕐 45 min</span><span>👥 12 muffins</span></div>
+          <div class="card-rating"><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star">★</span><span class="star empty">★</span><span class="rating-count">(89)</span></div>
+          <div class="card-tags"><span class="tag tag-butter tag-sm">Breakfast</span><span class="tag tag-sage tag-sm">Baking</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <img src="../../public/images/logo.svg" alt="TwoTeaspoons" class="footer-logo">
+  <h2>TwoTeaspoons</h2>
+  <p>Recipes worth sharing</p>
+  <p class="footer-note">Brand Guidelines v1.0 · twotsps.com</p>
+</footer>
+
 </body>
 </html>
