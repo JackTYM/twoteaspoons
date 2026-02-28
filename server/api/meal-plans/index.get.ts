@@ -1,4 +1,4 @@
-import { and, gte, lte } from 'drizzle-orm'
+import { and, eq, gte, lte } from 'drizzle-orm'
 import { db, mealPlans } from '../../db'
 import { requireAuth } from '../../utils/session'
 

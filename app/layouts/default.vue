@@ -47,6 +47,11 @@ const addRecipeItems = [
     icon: 'i-heroicons-arrow-down-tray',
     to: '/recipes/import',
   }],
+  [{
+    label: 'What Can I Make?',
+    icon: 'i-heroicons-sparkles',
+    to: '/what-can-i-make',
+  }],
 ]
 </script>
 
