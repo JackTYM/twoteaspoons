@@ -40,7 +40,13 @@ This document tracks decisions made during autonomous development sessions for r
 **Choice:** Hardcoded `userId = 1` in API endpoints until auth integration complete
 **Rationale:** Allows testing the full flow before proper session handling. Marked with TODO comments for easy find/replace.
 **Alternatives considered:** Skip auth entirely, mock auth service
-**Status:** Implementing - will need update when integrating proper auth
+**Status:** Implemented - needs update when integrating proper session handling
+
+### Decision 7: Shared Types File
+**Choice:** Created `app/types/recipe.ts` with duplicated type definitions
+**Rationale:** The `~` path alias doesn't resolve for client-side imports from server directory. Duplicating types in a client-accessible location provides type safety without complex build configuration.
+**Alternatives considered:** Configure Nuxt aliases, use relative imports
+**Status:** Implemented
 
 ---
 
@@ -66,4 +72,4 @@ This document tracks decisions made during autonomous development sessions for r
 
 ---
 
-*Last updated: 2026-02-28*
+*Last updated: 2026-02-28 (Phase 1 Complete)*
