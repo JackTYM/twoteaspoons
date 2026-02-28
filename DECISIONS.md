@@ -135,4 +135,29 @@ This document tracks decisions made during autonomous development sessions for r
 - Data export
 - PWA offline support
 
-*Last updated: 2026-02-28 (Phase 4 Complete)*
+## 2026-02-28 - Auth & Permissions Implementation
+
+### Decision 13: User ID Schema Change
+**Choice:** Changed all userId columns from integer to text (UUID)
+**Rationale:** Neon Auth uses UUIDs for user IDs. Direct compatibility avoids mapping tables.
+**Breaking Change:** Yes - requires fresh database or migration
+**Status:** Implemented
+
+### Decision 14: Server-Side Session Verification
+**Choice:** HTTP call to auth service `/api/auth/get-session` with forwarded cookies
+**Rationale:** Neon Auth client is client-side focused. Server needs to verify sessions by calling the auth endpoint.
+**Status:** Implemented
+
+### Decision 15: Public by Default
+**Choice:** Changed `isPublished` default from false to true
+**Rationale:** User preference - recipes should be visible to everyone unless explicitly made private.
+**Status:** Implemented
+
+### Decision 16: Drag-Drop Image Upload
+**Choice:** Direct file upload with drag-drop UI in RecipeForm
+**Rationale:** Better UX than URL-only input. Upload to R2 via existing API.
+**Status:** Implemented
+
+---
+
+*Last updated: 2026-02-28 (Auth & Permissions Complete)*
