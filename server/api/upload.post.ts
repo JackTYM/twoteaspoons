@@ -1,6 +1,9 @@
 import { uploadImage, type ImageCategory } from '../utils/r2'
+import { requireAuth } from '../utils/session'
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
+
   const formData = await readFormData(event)
   const file = formData.get('file') as File | null
   const category = (formData.get('category') as ImageCategory) || 'recipes'
@@ -30,11 +33,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // TODO: Get userId from session
-  const userId = 1
-
   const buffer = Buffer.from(await file.arrayBuffer())
-  const url = await uploadImage(buffer, category, userId, file.name, file.type)
+  const url = await uploadImage(buffer, category, user.id, file.name, file.type)
 
   return { url }
 })

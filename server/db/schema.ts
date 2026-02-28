@@ -14,10 +14,11 @@ import { relations } from 'drizzle-orm'
 
 // ============================================
 // USERS
+// Uses Neon Auth user IDs (UUIDs stored as text)
 // ============================================
 
 export const users = pgTable('users', {
-  id: serial('id').primaryKey(),
+  id: text('id').primaryKey(), // Neon Auth UUID
   email: varchar('email', { length: 255 }).notNull().unique(),
   name: varchar('name', { length: 255 }).notNull(),
   avatar: text('avatar'),
@@ -43,7 +44,7 @@ export const recipes = pgTable(
   'recipes',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     title: varchar('title', { length: 255 }).notNull(),
@@ -52,7 +53,7 @@ export const recipes = pgTable(
     prepTime: integer('prep_time'), // minutes
     cookTime: integer('cook_time'), // minutes
     servings: integer('servings').default(4),
-    isPublished: boolean('is_published').default(false),
+    isPublished: boolean('is_published').default(true),
 
     // Source attribution for imported recipes
     sourceUrl: text('source_url'),
@@ -194,7 +195,7 @@ export const tags = pgTable(
   'tags',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     name: varchar('name', { length: 100 }).notNull(),
@@ -234,7 +235,7 @@ export const collections = pgTable(
   'collections',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     name: varchar('name', { length: 255 }).notNull(),
@@ -267,10 +268,10 @@ export const collectionRecipes = pgTable(
 export const follows = pgTable(
   'follows',
   {
-    followerId: integer('follower_id')
+    followerId: text('follower_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
-    followingId: integer('following_id')
+    followingId: text('following_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -298,7 +299,7 @@ export const followsRelations = relations(follows, ({ one }) => ({
 export const favorites = pgTable(
   'favorites',
   {
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     recipeId: integer('recipe_id')
@@ -331,7 +332,7 @@ export const comments = pgTable(
     recipeId: integer('recipe_id')
       .references(() => recipes.id, { onDelete: 'cascade' })
       .notNull(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     content: text('content').notNull(),
@@ -362,7 +363,7 @@ export const mealPlans = pgTable(
   'meal_plans',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     recipeId: integer('recipe_id')
@@ -386,7 +387,7 @@ export const shoppingLists = pgTable(
   'shopping_lists',
   {
     id: serial('id').primaryKey(),
-    userId: integer('user_id')
+    userId: text('user_id')
       .references(() => users.id, { onDelete: 'cascade' })
       .notNull(),
     name: varchar('name', { length: 255 }).notNull(),

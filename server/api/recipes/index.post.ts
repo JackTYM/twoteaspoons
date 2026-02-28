@@ -1,4 +1,5 @@
 import { db, recipes, ingredients, instructions } from '../../db'
+import { requireAuth } from '../../utils/session'
 
 interface CreateRecipeBody {
   title: string
@@ -7,6 +8,7 @@ interface CreateRecipeBody {
   prepTime?: number
   cookTime?: number
   servings?: number
+  isPublished?: boolean
   sourceUrl?: string
   sourceAuthor?: string
   sourceSite?: string
@@ -23,10 +25,8 @@ interface CreateRecipeBody {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
   const body = await readBody<CreateRecipeBody>(event)
-
-  // TODO: Get userId from session
-  const userId = 1 // Temporary - will be replaced with session user
 
   if (!body.title) {
     throw createError({
@@ -37,13 +37,14 @@ export default defineEventHandler(async (event) => {
 
   // Insert recipe
   const [newRecipe] = await db.insert(recipes).values({
-    userId,
+    userId: user.id,
     title: body.title,
     description: body.description,
     coverPhoto: body.coverPhoto,
     prepTime: body.prepTime,
     cookTime: body.cookTime,
     servings: body.servings || 4,
+    isPublished: body.isPublished ?? true,
     sourceUrl: body.sourceUrl,
     sourceAuthor: body.sourceAuthor,
     sourceSite: body.sourceSite,

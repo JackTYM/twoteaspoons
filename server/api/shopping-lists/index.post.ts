@@ -1,6 +1,7 @@
 import { inArray } from 'drizzle-orm'
 import { db, shoppingLists, shoppingItems, recipes } from '../../db'
 import { consolidateIngredients } from '../../utils/ingredientConsolidator'
+import { requireAuth } from '../../utils/session'
 
 interface CreateListBody {
   name: string
@@ -8,10 +9,8 @@ interface CreateListBody {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
   const body = await readBody<CreateListBody>(event)
-
-  // TODO: Get userId from session
-  const userId = 1
 
   if (!body.name) {
     throw createError({
@@ -58,7 +57,7 @@ export default defineEventHandler(async (event) => {
 
   // Create shopping list
   const [newList] = await db.insert(shoppingLists).values({
-    userId,
+    userId: user.id,
     name: body.name,
   }).returning()
 

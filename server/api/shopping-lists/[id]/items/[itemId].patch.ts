@@ -1,18 +1,40 @@
 import { eq } from 'drizzle-orm'
-import { db, shoppingItems } from '../../../../db'
+import { db, shoppingItems, shoppingLists } from '../../../../db'
+import { requireAuth } from '../../../../utils/session'
 
 interface UpdateItemBody {
   checked?: boolean
 }
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
+  const listId = Number(getRouterParam(event, 'id'))
   const itemId = Number(getRouterParam(event, 'itemId'))
   const body = await readBody<UpdateItemBody>(event)
 
-  if (isNaN(itemId)) {
+  if (isNaN(itemId) || isNaN(listId)) {
     throw createError({
       statusCode: 400,
-      message: 'Invalid item ID',
+      message: 'Invalid ID',
+    })
+  }
+
+  // Check list ownership
+  const list = await db.query.shoppingLists.findFirst({
+    where: eq(shoppingLists.id, listId),
+  })
+
+  if (!list) {
+    throw createError({
+      statusCode: 404,
+      message: 'Shopping list not found',
+    })
+  }
+
+  if (list.userId !== user.id) {
+    throw createError({
+      statusCode: 403,
+      message: 'You can only modify your own shopping lists',
     })
   }
 
@@ -20,7 +42,7 @@ export default defineEventHandler(async (event) => {
     where: eq(shoppingItems.id, itemId),
   })
 
-  if (!existing) {
+  if (!existing || existing.listId !== listId) {
     throw createError({
       statusCode: 404,
       message: 'Item not found',

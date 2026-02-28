@@ -19,6 +19,7 @@ interface Props {
     prepTime?: number
     cookTime?: number
     servings?: number
+    isPublished?: boolean
     sourceUrl?: string
     sourceAuthor?: string
     sourceSite?: string
@@ -44,6 +45,7 @@ interface FormData {
   prepTime: number | null
   cookTime: number | null
   servings: number
+  isPublished: boolean
   sourceUrl: string
   sourceAuthor: string
   sourceSite: string
@@ -69,10 +71,79 @@ const form = reactive({
   prepTime: props.initialData?.prepTime || null as number | null,
   cookTime: props.initialData?.cookTime || null as number | null,
   servings: props.initialData?.servings || 4,
+  isPublished: props.initialData?.isPublished ?? true,
   sourceUrl: props.initialData?.sourceUrl || '',
   sourceAuthor: props.initialData?.sourceAuthor || '',
   sourceSite: props.initialData?.sourceSite || '',
 })
+
+// Image upload state
+const uploading = ref(false)
+const uploadError = ref('')
+const isDragging = ref(false)
+
+async function handleImageUpload(file: File): Promise<void> {
+  if (!file.type.startsWith('image/')) {
+    uploadError.value = 'Please upload an image file'
+    return
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    uploadError.value = 'Image must be less than 10MB'
+    return
+  }
+
+  uploading.value = true
+  uploadError.value = ''
+
+  try {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    const response = await $fetch<{ url: string }>('/api/upload', {
+      method: 'POST',
+      body: formData,
+    })
+
+    form.coverPhoto = response.url
+  } catch (err) {
+    console.error('Upload failed:', err)
+    uploadError.value = 'Failed to upload image'
+  } finally {
+    uploading.value = false
+  }
+}
+
+function handleDrop(event: DragEvent): void {
+  event.preventDefault()
+  isDragging.value = false
+
+  const file = event.dataTransfer?.files[0]
+  if (file) {
+    handleImageUpload(file)
+  }
+}
+
+function handleDragOver(event: DragEvent): void {
+  event.preventDefault()
+  isDragging.value = true
+}
+
+function handleDragLeave(): void {
+  isDragging.value = false
+}
+
+function handleFileSelect(event: Event): void {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (file) {
+    handleImageUpload(file)
+  }
+}
+
+function removeImage(): void {
+  form.coverPhoto = ''
+}
 
 // Ingredients
 const ingredients = ref<IngredientInput[]>(
@@ -216,16 +287,101 @@ function handleSubmit(): void {
         </UFormField>
       </div>
 
+      <!-- Cover Photo Upload -->
       <UFormField
-        label="Cover Photo URL"
+        label="Cover Photo"
         name="coverPhoto"
       >
-        <UInput
-          v-model="form.coverPhoto"
-          type="url"
-          placeholder="https://..."
+        <div
+          v-if="form.coverPhoto"
+          class="relative"
+        >
+          <img
+            :src="form.coverPhoto"
+            alt="Cover photo preview"
+            class="w-full h-48 object-cover rounded-lg"
+          >
+          <UButton
+            type="button"
+            color="error"
+            variant="solid"
+            icon="i-heroicons-x-mark"
+            size="sm"
+            class="absolute top-2 right-2"
+            @click="removeImage"
+          />
+        </div>
+        <div
+          v-else
+          class="relative"
+          @drop="handleDrop"
+          @dragover="handleDragOver"
+          @dragleave="handleDragLeave"
+        >
+          <label
+            class="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors"
+            :class="[
+              isDragging
+                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                : 'border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-800'
+            ]"
+          >
+            <div
+              v-if="uploading"
+              class="flex flex-col items-center"
+            >
+              <UIcon
+                name="i-heroicons-arrow-path"
+                class="w-10 h-10 text-neutral-400 animate-spin"
+              />
+              <span class="mt-2 text-sm text-neutral-500">Uploading...</span>
+            </div>
+            <div
+              v-else
+              class="flex flex-col items-center"
+            >
+              <UIcon
+                name="i-heroicons-photo"
+                class="w-10 h-10 text-neutral-400"
+              />
+              <span class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                <span class="font-medium text-primary-600 dark:text-primary-400">Click to upload</span>
+                or drag and drop
+              </span>
+              <span class="mt-1 text-xs text-neutral-400">
+                PNG, JPG, WebP up to 10MB
+              </span>
+            </div>
+            <input
+              type="file"
+              class="hidden"
+              accept="image/*"
+              :disabled="uploading"
+              @change="handleFileSelect"
+            >
+          </label>
+        </div>
+        <UAlert
+          v-if="uploadError"
+          color="error"
+          icon="i-heroicons-exclamation-circle"
+          :title="uploadError"
+          class="mt-2"
         />
       </UFormField>
+
+      <!-- Visibility -->
+      <div class="flex items-center justify-between p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+        <div>
+          <p class="font-medium text-neutral-700 dark:text-neutral-100">
+            Recipe Visibility
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ form.isPublished ? 'Anyone can see this recipe' : 'Only you can see this recipe' }}
+          </p>
+        </div>
+        <UToggle v-model="form.isPublished" />
+      </div>
     </div>
 
     <!-- Ingredients -->

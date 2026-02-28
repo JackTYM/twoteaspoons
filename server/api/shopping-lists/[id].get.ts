@@ -1,7 +1,9 @@
 import { eq } from 'drizzle-orm'
 import { db, shoppingLists, shoppingItems } from '../../db'
+import { requireAuth } from '../../utils/session'
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
   const id = Number(getRouterParam(event, 'id'))
 
   if (isNaN(id)) {
@@ -19,6 +21,14 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 404,
       message: 'Shopping list not found',
+    })
+  }
+
+  // Check ownership
+  if (list.userId !== user.id) {
+    throw createError({
+      statusCode: 403,
+      message: 'You can only view your own shopping lists',
     })
   }
 

@@ -25,7 +25,7 @@ export type ImageCategory = 'recipes' | 'avatars' | 'comments' | 'collections'
  */
 function generateKey(
   category: ImageCategory,
-  userId: number,
+  userId: string,
   filename: string
 ): string {
   const timestamp = Date.now()
@@ -40,7 +40,7 @@ function generateKey(
 export async function uploadImage(
   file: Buffer,
   category: ImageCategory,
-  userId: number,
+  userId: string,
   filename: string,
   contentType: string
 ): Promise<string> {
@@ -65,7 +65,7 @@ export async function uploadImage(
  */
 export async function getUploadUrl(
   category: ImageCategory,
-  userId: number,
+  userId: string,
   filename: string,
   contentType: string,
   expiresIn: number = 3600 // 1 hour default

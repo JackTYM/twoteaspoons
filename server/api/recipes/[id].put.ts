@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { db, recipes, ingredients, instructions } from '../../db'
+import { requireAuth } from '../../utils/session'
 
 interface UpdateRecipeBody {
   title?: string
@@ -8,6 +9,7 @@ interface UpdateRecipeBody {
   prepTime?: number
   cookTime?: number
   servings?: number
+  isPublished?: boolean
   sourceUrl?: string
   sourceAuthor?: string
   sourceSite?: string
@@ -24,6 +26,7 @@ interface UpdateRecipeBody {
 }
 
 export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
   const id = Number(getRouterParam(event, 'id'))
   const body = await readBody<UpdateRecipeBody>(event)
 
@@ -46,7 +49,13 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // TODO: Check ownership once auth is integrated
+  // Check ownership
+  if (existing.userId !== user.id) {
+    throw createError({
+      statusCode: 403,
+      message: 'You can only edit your own recipes',
+    })
+  }
 
   // Update recipe
   const [updated] = await db.update(recipes)
@@ -57,6 +66,7 @@ export default defineEventHandler(async (event) => {
       prepTime: body.prepTime,
       cookTime: body.cookTime,
       servings: body.servings,
+      isPublished: body.isPublished ?? existing.isPublished,
       sourceUrl: body.sourceUrl,
       sourceAuthor: body.sourceAuthor,
       sourceSite: body.sourceSite,

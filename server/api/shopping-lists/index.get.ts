@@ -1,12 +1,12 @@
 import { eq, desc } from 'drizzle-orm'
 import { db, shoppingLists, shoppingItems } from '../../db'
+import { requireAuth } from '../../utils/session'
 
-export default defineEventHandler(async () => {
-  // TODO: Get userId from session
-  const userId = 1
+export default defineEventHandler(async (event) => {
+  const user = await requireAuth(event)
 
   const lists = await db.query.shoppingLists.findMany({
-    where: eq(shoppingLists.userId, userId),
+    where: eq(shoppingLists.userId, user.id),
     orderBy: [desc(shoppingLists.createdAt)],
   })
 
