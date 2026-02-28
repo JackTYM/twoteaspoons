@@ -98,6 +98,14 @@ const addRecipeItems = [
                 >
                   <span class="hidden sm:inline">Shopping</span>
                 </UButton>
+                <UButton
+                  to="/meal-plan"
+                  variant="ghost"
+                  color="neutral"
+                  icon="i-heroicons-calendar"
+                >
+                  <span class="hidden sm:inline">Meal Plan</span>
+                </UButton>
                 <UDropdown :items="addRecipeItems">
                   <UButton
                     color="primary"

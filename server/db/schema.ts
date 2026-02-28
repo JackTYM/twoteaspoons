@@ -379,6 +379,17 @@ export const mealPlans = pgTable(
   ]
 )
 
+export const mealPlansRelations = relations(mealPlans, ({ one }) => ({
+  user: one(users, {
+    fields: [mealPlans.userId],
+    references: [users.id],
+  }),
+  recipe: one(recipes, {
+    fields: [mealPlans.recipeId],
+    references: [recipes.id],
+  }),
+}))
+
 // ============================================
 // SHOPPING LISTS
 // ============================================
@@ -414,6 +425,25 @@ export const shoppingItems = pgTable(
   },
   (table) => [index('shopping_items_list_id_idx').on(table.listId)]
 )
+
+export const shoppingListsRelations = relations(shoppingLists, ({ one, many }) => ({
+  user: one(users, {
+    fields: [shoppingLists.userId],
+    references: [users.id],
+  }),
+  items: many(shoppingItems),
+}))
+
+export const shoppingItemsRelations = relations(shoppingItems, ({ one }) => ({
+  list: one(shoppingLists, {
+    fields: [shoppingItems.listId],
+    references: [shoppingLists.id],
+  }),
+  recipe: one(recipes, {
+    fields: [shoppingItems.recipeId],
+    references: [recipes.id],
+  }),
+}))
 
 // ============================================
 // TYPE EXPORTS
