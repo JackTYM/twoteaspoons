@@ -448,6 +448,11 @@ async function handleFork(): Promise<void> {
             </ol>
           </div>
         </div>
+
+        <!-- Comments Section -->
+        <div class="mt-12 pt-8 border-t border-neutral-200 dark:border-neutral-700">
+          <RecipeComments :recipe-id="recipe.id" />
+        </div>
       </div>
 
       <!-- Delete Confirmation Modal -->
