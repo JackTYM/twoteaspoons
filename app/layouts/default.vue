@@ -30,6 +30,11 @@ const dropdownItems = computed(() => [
     disabled: true,
   }],
   [{
+    label: 'Settings',
+    icon: 'i-heroicons-cog-6-tooth',
+    to: '/settings',
+  }],
+  [{
     label: 'Sign out',
     icon: 'i-heroicons-arrow-right-on-rectangle',
     click: handleSignOut,
