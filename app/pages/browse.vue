@@ -17,6 +17,12 @@ const sortBy = ref<SortOption>('newest')
 const searchQuery = ref('')
 const viewMode = ref<'grid' | 'list'>('grid')
 
+// Track hydration state to avoid SSR/client mismatch
+const isHydrated = ref(false)
+
+// Use effective values that only change after hydration
+const effectiveViewMode = computed(() => isHydrated.value ? viewMode.value : 'grid')
+
 // Filters (declared early so watchers can reference it)
 interface Filters {
   maxTime: number | null
@@ -33,13 +39,9 @@ const filters = ref<Filters>({
 })
 
 // Load preferences from localStorage and URL params
-onMounted(() => {
-  const savedView = localStorage.getItem('browse-view')
-  const savedSort = localStorage.getItem('browse-sort')
-  if (savedView === 'grid' || savedView === 'list') viewMode.value = savedView
-  if (savedSort) sortBy.value = savedSort as typeof sortBy.value
-
-  // Load filters from URL query params
+// Use nextTick to wait for hydration to complete before applying localStorage preferences
+onMounted(async () => {
+  // Load filters from URL query params first (these are consistent between SSR and client)
   if (route.query.categories) {
     const categoryParam = route.query.categories as string
     filters.value.categories = categoryParam.split(',').filter(Boolean)
@@ -50,6 +52,15 @@ onMounted(() => {
   if (route.query.q) {
     searchQuery.value = route.query.q as string
   }
+
+  // Wait for hydration to complete before applying localStorage preferences
+  await nextTick()
+  // Mark hydrated AFTER applying preferences so the computed uses them together
+  const savedView = localStorage.getItem('browse-view')
+  const savedSort = localStorage.getItem('browse-sort')
+  if (savedView === 'grid' || savedView === 'list') viewMode.value = savedView
+  if (savedSort) sortBy.value = savedSort as typeof sortBy.value
+  isHydrated.value = true
 })
 
 // Save preferences to localStorage
@@ -237,8 +248,9 @@ const recipes = computed(() => {
     })
   }
 
-  // Sorting - skip for 'newest' since that's the API's default order (avoids hydration mismatch)
-  if (sortBy.value !== 'newest') {
+  // Sorting - only apply after hydration to avoid mismatch between SSR and client
+  // During SSR and initial hydration, use API's default order (newest)
+  if (isHydrated.value && sortBy.value !== 'newest') {
     result.sort((a, b) => {
       let primarySort = 0
       switch (sortBy.value) {
@@ -466,7 +478,7 @@ function handleAddToCollection(recipeId: number): void {
 
           <!-- Grid View -->
           <div
-            v-else-if="viewMode === 'grid'"
+            v-else-if="effectiveViewMode === 'grid'"
             class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
           >
             <BrowseRecipeCard
@@ -597,7 +609,7 @@ function handleAddToCollection(recipeId: number): void {
                     class="w-4 h-4 text-butter-600 dark:text-butter-400"
                   />
                 </div>
-                <span>Create recipe collections</span>
+                <span>Create recipe cookbooks</span>
               </li>
               <li class="flex items-center gap-3 text-neutral-600 dark:text-neutral-300">
                 <div class="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">

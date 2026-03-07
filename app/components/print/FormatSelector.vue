@@ -8,27 +8,13 @@ interface FormatDimension {
 interface Props {
   formats: Record<string, FormatDimension>
   selectedFormat: string
-  ingredientCount: number
-  instructionCount: number
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   select: [format: string]
 }>()
-
-// Check if content fits on a single card
-function fitsOnSingle(format: string): boolean {
-  // Small formats need multiple cards for longer recipes
-  if (format === '3x5') {
-    return props.ingredientCount <= 6 && props.instructionCount <= 3
-  }
-  if (format === '4x6') {
-    return props.ingredientCount <= 10 && props.instructionCount <= 5
-  }
-  return true
-}
 
 // Get preview size for visual comparison (scaled down)
 function getPreviewSize(format: FormatDimension): { width: string; height: string } {
@@ -98,14 +84,6 @@ const formatIcons: Record<string, string> = {
       >
         {{ format.name }}
       </p>
-
-      <!-- Multi-card indicator -->
-      <div
-        v-if="!fitsOnSingle(key)"
-        class="absolute -top-2 -right-2 px-2 py-0.5 bg-butter-100 dark:bg-butter-900/50 text-butter-700 dark:text-butter-300 text-xs rounded-full font-medium"
-      >
-        2 cards
-      </div>
 
       <!-- Selected checkmark -->
       <Transition name="check">

@@ -38,7 +38,7 @@ interface FormData {
 
 const props = withDefaults(defineProps<Props>(), {
   initialData: undefined,
-  submitLabel: 'Save Collection',
+  submitLabel: 'Save Cookbook',
   loading: false,
   autosaveKey: 'collection',
   mode: 'create',

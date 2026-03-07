@@ -54,7 +54,7 @@ function confirmDelete(collection: Collection): void {
     <div class="flex items-center justify-between mb-6">
       <div>
         <h2 class="text-2xl font-display text-neutral-700 dark:text-neutral-50">
-          My Collections
+          My Cookbooks
         </h2>
         <p class="text-neutral-500 dark:text-neutral-400 mt-1">
           Organize your recipes into themed groups
@@ -66,7 +66,7 @@ function confirmDelete(collection: Collection): void {
         icon="i-heroicons-plus"
         class="press-effect"
       >
-        New Collection
+        New Cookbook
       </UButton>
     </div>
 
@@ -78,7 +78,7 @@ function confirmDelete(collection: Collection): void {
       <div class="flex items-center gap-2">
         <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
           <UIcon
-            name="i-heroicons-folder"
+            name="i-heroicons-book-open"
             class="w-5 h-5 text-primary-600 dark:text-primary-400"
           />
         </div>
@@ -87,7 +87,7 @@ function confirmDelete(collection: Collection): void {
             {{ collections.length }}
           </p>
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
-            {{ collections.length === 1 ? 'Collection' : 'Collections' }}
+            {{ collections.length === 1 ? 'Cookbook' : 'Cookbooks' }}
           </p>
         </div>
       </div>
@@ -125,9 +125,9 @@ function confirmDelete(collection: Collection): void {
     <EmptyState
       v-else-if="collections.length === 0"
       type="collections"
-      title="No collections yet"
-      description="Create a collection to organize your favorite recipes by theme, occasion, or cuisine."
-      action-label="Create Your First Collection"
+      title="No cookbooks yet"
+      description="Create a cookbook to organize your favorite recipes by theme, occasion, or cuisine."
+      action-label="Create Your First Cookbook"
       action-to="/collections/new"
     />
 
@@ -147,8 +147,8 @@ function confirmDelete(collection: Collection): void {
     <!-- Delete Modal -->
     <UModal
       v-model:open="deleteModalOpen"
-      title="Delete Collection"
-      description="Confirm deletion of collection"
+      title="Delete Cookbook"
+      description="Confirm deletion of cookbook"
     >
       <template #content>
         <UCard>
@@ -161,7 +161,7 @@ function confirmDelete(collection: Collection): void {
                 />
               </div>
               <h3 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-                Delete Collection
+                Delete Cookbook
               </h3>
             </div>
           </template>
@@ -169,7 +169,7 @@ function confirmDelete(collection: Collection): void {
             Are you sure you want to delete "<strong>{{ collectionToDelete?.name }}</strong>"?
           </p>
           <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
-            This won't delete the recipes themselves, just the collection.
+            This won't delete the recipes themselves, just the cookbook.
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">
@@ -187,7 +187,7 @@ function confirmDelete(collection: Collection): void {
                 class="press-effect"
                 @click="handleDelete"
               >
-                Delete Collection
+                Delete Cookbook
               </UButton>
             </div>
           </template>

@@ -17,6 +17,12 @@ const settingsItems = [
     to: '/settings/profile',
   },
   {
+    title: 'Import Recipes',
+    description: 'Bulk import recipes from a JSON file',
+    icon: 'i-heroicons-arrow-up-tray',
+    to: '/settings/import',
+  },
+  {
     title: 'Export Data',
     description: 'Download a copy of your recipes and data',
     icon: 'i-heroicons-arrow-down-tray',

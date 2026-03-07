@@ -205,7 +205,7 @@ watch(open, (isOpen) => {
                     name="i-heroicons-check-circle"
                     class="w-3.5 h-3.5"
                   />
-                  Already in collection
+                  Already in cookbook
                 </p>
               </div>
 

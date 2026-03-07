@@ -6,8 +6,8 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'New Collection',
-  description: 'Create a new recipe collection',
+  title: 'New Cookbook',
+  description: 'Create a new recipe cookbook',
 })
 
 const route = useRoute()
@@ -70,7 +70,7 @@ async function handleSubmit(data: FormData): Promise<void> {
     navigateTo(`/collections/${result.collection.slug}`)
   } catch (err) {
     console.error('Failed to create collection:', err)
-    error.value = 'Failed to create collection'
+    error.value = 'Failed to create cookbook'
     loading.value = false
   }
 }
@@ -156,8 +156,8 @@ onMounted(async () => {
     <div class="max-w-6xl mx-auto mb-6">
       <Breadcrumbs
         :items="[
-          { label: 'Collections', to: '/collections', icon: 'i-heroicons-folder' },
-          { label: 'New Collection' },
+          { label: 'Cookbooks', to: '/collections', icon: 'i-heroicons-book-open' },
+          { label: 'New Cookbook' },
         ]"
       />
     </div>
@@ -174,7 +174,7 @@ onMounted(async () => {
     <CollectionEditor
       ref="editorRef"
       :initial-data="{ recipes: tempRecipes }"
-      submit-label="Create Collection"
+      submit-label="Create Cookbook"
       :loading="loading"
       autosave-key="collection-new"
       mode="create"

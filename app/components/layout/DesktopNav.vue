@@ -15,7 +15,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Browse', icon: 'i-heroicons-magnifying-glass', to: '/browse' },
   { label: 'Saved', icon: 'i-heroicons-bookmark', to: '/saved', requiresAuth: true },
-  { label: 'Collections', icon: 'i-heroicons-folder', to: '/collections', requiresAuth: true },
+  { label: 'Cookbooks', icon: 'i-heroicons-book-open', to: '/collections', requiresAuth: true },
   { label: 'Shopping', icon: 'i-heroicons-shopping-cart', to: '/shopping', requiresAuth: true },
   { label: 'Meal Plan', icon: 'i-heroicons-calendar', to: '/meal-plan', requiresAuth: true },
 ]

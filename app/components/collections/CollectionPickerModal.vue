@@ -91,15 +91,15 @@ function handleCreateNew(): void {
 <template>
   <UModal
     v-model:open="open"
-    title="Add to Collection"
-    description="Choose a collection to add this recipe to"
+    title="Add to Cookbook"
+    description="Choose a cookbook to add this recipe to"
   >
     <template #content>
       <div class="p-6 max-h-[70vh] flex flex-col">
         <!-- Header -->
         <div class="flex items-center justify-between mb-4">
           <h3 class="text-lg font-display text-neutral-700 dark:text-neutral-100">
-            Add to Collection
+            Add to Cookbook
           </h3>
           <UButton
             icon="i-heroicons-x-mark"
@@ -136,10 +136,10 @@ function handleCreateNew(): void {
               />
             </div>
             <p class="text-neutral-600 dark:text-neutral-300 mb-1">
-              No collections yet
+              No cookbooks yet
             </p>
             <p class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-              Create your first collection to organize recipes
+              Create your first cookbook to organize recipes
             </p>
           </div>
 
@@ -224,7 +224,7 @@ function handleCreateNew(): void {
             class="press-effect"
             @click="handleCreateNew"
           >
-            Create New Collection
+            Create New Cookbook
           </UButton>
         </div>
       </div>

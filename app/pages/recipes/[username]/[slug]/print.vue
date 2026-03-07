@@ -46,6 +46,12 @@ const formatDimensions: Record<string, FormatDimension> = {
   full: { width: '8.5in', height: '11in', name: 'Full Page' },
 }
 
+// Rotate text toggle for vertical printing
+const rotateText = ref(false)
+
+// Scale for print (100 = default, smaller = bigger margins/smaller text)
+const printScale = ref(100)
+
 const defaultFormat: FormatDimension = {
   width: '5in',
   height: '3in',
@@ -54,6 +60,53 @@ const defaultFormat: FormatDimension = {
 
 const currentFormat = computed((): FormatDimension => {
   return formatDimensions[format.value] ?? defaultFormat
+})
+
+// Dynamic print styles for proper PDF page size
+const printStyles = computed(() => {
+  const width = currentFormat.value.width
+  const height = currentFormat.value.height
+  const scale = printScale.value / 100
+
+  if (rotateText.value) {
+    // Rotated mode uses PDF endpoint, but still need basic print styles
+    // in case user triggers native print
+    return `
+      @media print {
+        @page {
+          size: ${height} ${width};
+          margin: 0.2in;
+        }
+      }
+    `
+  }
+
+  // Normal: left-aligned, vertically centered
+  const normalScaleTransform = scale !== 1 ? `transform: scale(${scale}); transform-origin: left center;` : ''
+  return `
+    @media print {
+      @page {
+        size: ${width} ${height};
+        margin: 0.25in;
+      }
+      .recipe-card {
+        display: flex;
+        align-items: center;
+      }
+      .recipe-card .card-content {
+        ${normalScaleTransform}
+      }
+    }
+  `
+})
+
+// Inject dynamic print styles into head
+useHead({
+  style: [
+    {
+      innerHTML: printStyles,
+    },
+  ],
 })
 
 function selectFormat(newFormat: string): void {
@@ -79,26 +132,15 @@ function getTotalTime(): string {
 }
 
 function print(): void {
-  window.print()
+  if (rotateText.value) {
+    // For rotated mode, use the PDF generator endpoint
+    const pdfUrl = `/api/recipes/${username.value}/${slug.value}/print-pdf?format=${format.value}&rotated=true&scale=${printScale.value}`
+    window.open(pdfUrl, '_blank')
+  } else {
+    window.print()
+  }
 }
 
-// For multi-card layouts, check if content needs multiple cards
-const needsMultipleCards = computed(() => {
-  if (!recipe.value) return false
-  if (format.value === '3x5') {
-    return (
-      recipe.value.ingredients.length > 6 ||
-      recipe.value.instructions.length > 3
-    )
-  }
-  if (format.value === '4x6') {
-    return (
-      recipe.value.ingredients.length > 10 ||
-      recipe.value.instructions.length > 5
-    )
-  }
-  return false
-})
 </script>
 
 <template>
@@ -150,11 +192,50 @@ const needsMultipleCards = computed(() => {
               v-if="recipe"
               :formats="formatDimensions"
               :selected-format="format"
-              :ingredient-count="recipe.ingredients.length"
-              :instruction-count="recipe.instructions.length"
-              class="mb-6"
+              class="mb-4"
               @select="selectFormat"
             />
+
+            <!-- Rotate text toggle -->
+            <div
+              v-if="format === '3x5' || format === '4x6'"
+              class="flex items-center gap-3 p-3 bg-neutral-100 dark:bg-neutral-800 rounded-xl mb-4"
+            >
+              <USwitch v-model="rotateText" />
+              <div>
+                <p class="text-sm font-medium text-neutral-700 dark:text-neutral-100">
+                  Rotate for vertical printing
+                </p>
+                <p class="text-xs text-neutral-500 dark:text-neutral-400">
+                  Print landscape, then turn card sideways
+                </p>
+              </div>
+            </div>
+
+            <!-- Print scale -->
+            <div class="p-3 bg-neutral-100 dark:bg-neutral-800 rounded-xl mb-6">
+              <div class="flex items-center justify-between mb-2">
+                <p class="text-sm font-medium text-neutral-700 dark:text-neutral-100">
+                  Scale
+                </p>
+                <span class="text-sm text-neutral-500 dark:text-neutral-400">
+                  {{ printScale }}%
+                </span>
+              </div>
+              <input
+                v-model.number="printScale"
+                type="range"
+                min="25"
+                max="150"
+                step="5"
+                class="w-full h-2 bg-neutral-200 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-primary-500"
+              >
+              <div class="flex justify-between text-xs text-neutral-400 mt-1">
+                <span>25%</span>
+                <span>100%</span>
+                <span>150%</span>
+              </div>
+            </div>
 
             <PrintInstructions :format="format" />
           </div>
@@ -173,13 +254,9 @@ const needsMultipleCards = computed(() => {
                 v-if="recipe"
                 :recipe="recipe"
                 :format="format"
-                :show-back="needsMultipleCards"
+                :rotated="rotateText"
+                :print-scale="printScale"
               />
-
-              <p class="text-sm text-neutral-400 mt-4">
-                Preview is scaled. Actual print will be
-                {{ currentFormat.name }} size.
-              </p>
             </div>
           </div>
         </div>
@@ -188,6 +265,7 @@ const needsMultipleCards = computed(() => {
 
     <!-- Print Content -->
     <div class="print-only">
+      <!-- First card -->
       <div
         v-if="recipe"
         class="recipe-card"
@@ -196,7 +274,7 @@ const needsMultipleCards = computed(() => {
           minHeight: currentFormat.height,
         }"
       >
-        <div class="p-3">
+        <div class="card-content p-3">
           <h1 class="text-lg font-bold text-black leading-tight mb-1">
             {{ recipe.title }}
           </h1>
@@ -219,7 +297,7 @@ const needsMultipleCards = computed(() => {
             </ul>
           </div>
 
-          <div v-if="format !== '3x5'" class="text-xs">
+          <div class="text-xs">
             <h2 class="font-semibold text-gray-800 mb-1">Instructions</h2>
             <ol class="space-y-1 list-decimal list-inside">
               <li
@@ -231,31 +309,6 @@ const needsMultipleCards = computed(() => {
               </li>
             </ol>
           </div>
-        </div>
-      </div>
-
-      <!-- Second page for 3x5 format -->
-      <div
-        v-if="recipe && format === '3x5'"
-        class="recipe-card page-break"
-        :style="{
-          width: currentFormat.width,
-          minHeight: currentFormat.height,
-        }"
-      >
-        <div class="p-3">
-          <h1 class="text-sm font-bold text-black mb-2">
-            {{ recipe.title }} (Instructions)
-          </h1>
-          <ol class="space-y-1 list-decimal list-inside text-xs">
-            <li
-              v-for="inst in recipe.instructions"
-              :key="inst.id"
-              class="text-gray-700"
-            >
-              {{ inst.content }}
-            </li>
-          </ol>
         </div>
       </div>
     </div>
@@ -289,10 +342,6 @@ const needsMultipleCards = computed(() => {
 
   .page-break {
     page-break-before: always;
-  }
-
-  @page {
-    margin: 0.25in;
   }
 }
 

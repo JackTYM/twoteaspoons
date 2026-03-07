@@ -54,6 +54,16 @@ const { getRecipeUrl, getRecipeEditUrl } = useRecipeUrl()
 const recipeUrl = computed(() => getRecipeUrl(props.recipe))
 const editUrl = computed(() => getRecipeEditUrl(props.recipe))
 
+function navigateToEdit(): void {
+  navigateTo(editUrl.value)
+}
+
+function navigateToAuthor(): void {
+  if (props.recipe.author?.username) {
+    navigateTo(`/users/${props.recipe.author.username}`)
+  }
+}
+
 function formatTime(minutes: number | null): string {
   if (!minutes) return ''
   if (minutes < 60) return `${minutes}m`
@@ -131,17 +141,16 @@ function getCategoryColor(type: string): string {
         <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
 
         <!-- Quick Actions (appear on hover) -->
-        <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+        <div class="absolute top-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-all duration-200 translate-y-1 group-hover:translate-y-0 z-10">
           <UButton
             v-if="showEdit"
-            :to="editUrl"
             icon="i-heroicons-pencil"
             color="neutral"
             variant="solid"
             size="sm"
             class="bg-white/90 hover:bg-white text-neutral-700 shadow-lg press-effect"
             aria-label="Edit recipe"
-            @click.stop
+            @click.stop.prevent="navigateToEdit"
           />
           <UButton
             :icon="recipe.isSaved ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'"
@@ -240,14 +249,14 @@ function getCategoryColor(type: string): string {
               {{ recipe.servings }}
             </span>
           </div>
-          <NuxtLink
+          <button
             v-if="recipe.author?.username"
-            :to="`/users/${recipe.author.username}`"
+            type="button"
             class="text-xs hover:text-primary-600 dark:hover:text-primary-400 transition-colors truncate max-w-[100px]"
-            @click.stop
+            @click.stop.prevent="navigateToAuthor"
           >
             by {{ recipe.author.name }}
-          </NuxtLink>
+          </button>
         </div>
       </div>
     </div>
@@ -327,14 +336,14 @@ function getCategoryColor(type: string): string {
             />
             {{ recipe.servings }} servings
           </span>
-          <NuxtLink
+          <button
             v-if="recipe.author?.username"
-            :to="`/users/${recipe.author.username}`"
+            type="button"
             class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
-            @click.stop
+            @click.stop.prevent="navigateToAuthor"
           >
             by {{ recipe.author.name }}
-          </NuxtLink>
+          </button>
         </div>
       </div>
 
@@ -351,17 +360,16 @@ function getCategoryColor(type: string): string {
       </div>
 
       <!-- Quick Actions -->
-      <div class="flex-shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div class="flex-shrink-0 flex items-center gap-2 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity z-10">
         <UButton
           v-if="showEdit"
-          :to="editUrl"
           icon="i-heroicons-pencil"
           color="neutral"
           variant="ghost"
           size="sm"
           class="press-effect"
           aria-label="Edit recipe"
-          @click.stop
+          @click.stop.prevent="navigateToEdit"
         />
         <UButton
           :icon="recipe.isSaved ? 'i-heroicons-bookmark-solid' : 'i-heroicons-bookmark'"

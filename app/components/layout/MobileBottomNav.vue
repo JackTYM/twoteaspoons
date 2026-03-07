@@ -13,11 +13,11 @@ interface NavItem {
   requiresAuth?: boolean
 }
 
-// Bottom nav items: Browse, Saved, Collections, Shopping, Meal Plan
+// Bottom nav items: Browse, Saved, Cookbooks, Shopping, Meal Plan
 const navItems: NavItem[] = [
   { label: 'Browse', icon: 'i-heroicons-magnifying-glass', iconActive: 'i-heroicons-magnifying-glass', to: '/browse' },
   { label: 'Saved', icon: 'i-heroicons-bookmark', iconActive: 'i-heroicons-bookmark-solid', to: '/saved', requiresAuth: true },
-  { label: 'Collections', icon: 'i-heroicons-folder', iconActive: 'i-heroicons-folder-solid', to: '/collections', requiresAuth: true },
+  { label: 'Cookbooks', icon: 'i-heroicons-book-open', iconActive: 'i-heroicons-book-open-solid', to: '/collections', requiresAuth: true },
   { label: 'Shopping', icon: 'i-heroicons-shopping-cart', iconActive: 'i-heroicons-shopping-cart-solid', to: '/shopping', requiresAuth: true },
   { label: 'Meal Plan', icon: 'i-heroicons-calendar', iconActive: 'i-heroicons-calendar-solid', to: '/meal-plan', requiresAuth: true },
 ]

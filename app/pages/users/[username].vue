@@ -88,6 +88,14 @@ interface MyCollection {
 
 async function fetchOwnContent(): Promise<void> {
   if (hasFetchedOwnContent.value || !data.value) return
+
+  // Double-check this is actually the user's own profile before fetching private content
+  // This prevents race conditions and ensures data integrity
+  if (!isOwnProfile.value || data.value.user.id !== currentUser.value?.id) {
+    console.warn('fetchOwnContent called but not viewing own profile')
+    return
+  }
+
   hasFetchedOwnContent.value = true
 
   try {
@@ -95,6 +103,12 @@ async function fetchOwnContent(): Promise<void> {
     const recipesResult = await $fetch<{ recipes: MyRecipe[] }>('/api/recipes/mine', {
       headers: getAuthHeaders(),
     })
+
+    // Re-verify after async operation to prevent race conditions
+    if (!isOwnProfile.value || !data.value || data.value.user.id !== currentUser.value?.id) {
+      return
+    }
+
     if (recipesResult?.recipes) {
       data.value.recipes = recipesResult.recipes.map(r => ({
         ...r,
@@ -107,6 +121,12 @@ async function fetchOwnContent(): Promise<void> {
     const collectionsResult = await $fetch<{ collections: MyCollection[] }>('/api/collections', {
       headers: getAuthHeaders(),
     })
+
+    // Re-verify again after second async operation
+    if (!isOwnProfile.value || !data.value || data.value.user.id !== currentUser.value?.id) {
+      return
+    }
+
     if (collectionsResult?.collections) {
       data.value.collections = collectionsResult.collections.map(c => ({
         ...c,
@@ -118,6 +138,11 @@ async function fetchOwnContent(): Promise<void> {
     console.error('Failed to fetch own content:', err)
   }
 }
+
+// Reset fetch flag when route changes (navigating to different profile)
+watch(() => route.params.username, () => {
+  hasFetchedOwnContent.value = false
+})
 
 // Watch for when profile data is loaded AND it's own profile
 watch(
@@ -287,7 +312,7 @@ function handleAddToCollection(_recipeId: number): void {
             {{ data.stats.collectionCount }}
           </p>
           <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            {{ data.stats.collectionCount === 1 ? 'Collection' : 'Collections' }}
+            {{ data.stats.collectionCount === 1 ? 'Cookbook' : 'Cookbooks' }}
           </p>
         </div>
         <div class="bg-white dark:bg-neutral-800 rounded-xl p-4 text-center border border-neutral-200 dark:border-neutral-700">
@@ -326,7 +351,7 @@ function handleAddToCollection(_recipeId: number): void {
           ]"
           @click="activeTab = 'collections'"
         >
-          Collections
+          Cookbooks
           <span
             v-if="activeTab === 'collections'"
             class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
@@ -398,16 +423,16 @@ function handleAddToCollection(_recipeId: number): void {
             color="primary"
             icon="i-heroicons-plus"
           >
-            New Collection
+            New Cookbook
           </UButton>
         </div>
 
         <EmptyState
           v-if="data.collections.length === 0"
           type="collections"
-          :title="isOwnProfile ? 'No collections yet' : 'No public collections'"
-          :description="isOwnProfile ? 'Create your first collection to organize recipes.' : `${data.user.name} hasn't shared any collections yet.`"
-          :action-label="isOwnProfile ? 'Create Collection' : undefined"
+          :title="isOwnProfile ? 'No cookbooks yet' : 'No public cookbooks'"
+          :description="isOwnProfile ? 'Create your first cookbook to organize recipes.' : `${data.user.name} hasn't shared any cookbooks yet.`"
+          :action-label="isOwnProfile ? 'Create Cookbook' : undefined"
           :action-to="isOwnProfile ? '/collections/new' : undefined"
         />
 

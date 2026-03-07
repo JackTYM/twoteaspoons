@@ -106,7 +106,7 @@ const previewPhotos = computed(() => {
             variant="solid"
             icon="i-heroicons-trash"
             size="xs"
-            aria-label="Delete collection"
+            aria-label="Delete cookbook"
             @click.prevent="emit('delete')"
           />
         </div>

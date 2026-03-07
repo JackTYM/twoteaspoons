@@ -44,9 +44,9 @@ const {
 })
 
 useSeoMeta({
-  title: computed(() => data.value?.collection.name || 'Collection'),
+  title: computed(() => data.value?.collection.name || 'Cookbook'),
   description: computed(
-    () => data.value?.collection.description || 'Recipe collection'
+    () => data.value?.collection.description || 'Recipe cookbook'
   ),
 })
 
@@ -137,17 +137,17 @@ function getTotalTime(recipe: Recipe): string {
         />
       </div>
       <h2 class="text-xl font-display text-neutral-700 dark:text-neutral-100 mb-2">
-        Collection Not Found
+        Cookbook Not Found
       </h2>
       <p class="text-neutral-500 dark:text-neutral-400 mb-6">
-        This collection doesn't exist or you don't have access.
+        This cookbook doesn't exist or you don't have access.
       </p>
       <UButton
         to="/collections"
         color="primary"
         class="press-effect"
       >
-        Back to Collections
+        Back to Cookbooks
       </UButton>
     </div>
 
@@ -197,7 +197,7 @@ function getTotalTime(recipe: Recipe): string {
           No recipes yet
         </h2>
         <p class="text-neutral-500 dark:text-neutral-400 mb-6">
-          Add your favorite recipes to this collection
+          Add your favorite recipes to this cookbook
         </p>
         <UButton
           v-if="data.isOwner"
@@ -314,7 +314,7 @@ function getTotalTime(recipe: Recipe): string {
     <UModal
       v-model:open="removeModalOpen"
       title="Remove Recipe"
-      description="Confirm removal of recipe from collection"
+      description="Confirm removal of recipe from cookbook"
     >
       <template #content>
         <UCard>
@@ -335,10 +335,10 @@ function getTotalTime(recipe: Recipe): string {
           </template>
           <p class="text-neutral-600 dark:text-neutral-300">
             Remove "<strong>{{ recipeToRemove?.title }}</strong>" from this
-            collection?
+            cookbook?
           </p>
           <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
-            The recipe won't be deleted, just removed from this collection.
+            The recipe won't be deleted, just removed from this cookbook.
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">

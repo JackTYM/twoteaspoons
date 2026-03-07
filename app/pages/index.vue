@@ -386,7 +386,7 @@ function handleAddToCollection(recipeId: number): void {
                     class="w-4 h-4 text-butter-600 dark:text-butter-400"
                   />
                 </div>
-                <span>Create recipe collections</span>
+                <span>Create recipe cookbooks</span>
               </li>
               <li class="flex items-center gap-3 text-neutral-600 dark:text-neutral-300">
                 <div class="w-8 h-8 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">

@@ -58,7 +58,7 @@ watchEffect(() => {
 
 useSeoMeta({
   title: computed(() =>
-    data.value ? `Edit: ${data.value.collection.name}` : 'Edit Collection'
+    data.value ? `Edit: ${data.value.collection.name}` : 'Edit Cookbook'
   ),
 })
 
@@ -209,7 +209,7 @@ function handleReorderRecipes(recipes: Recipe[]): void {
       v-else-if="fetchError"
       color="error"
       variant="soft"
-      title="Collection not found"
+      title="Cookbook not found"
       icon="i-heroicons-exclamation-circle"
       class="max-w-6xl mx-auto"
     />

@@ -68,7 +68,7 @@ function gradientForName(name: string): string {
       <div class="max-w-4xl mx-auto">
         <Breadcrumbs
           :items="[
-            { label: 'Collections', to: '/collections', icon: 'i-heroicons-folder' },
+            { label: 'Cookbooks', to: '/collections', icon: 'i-heroicons-book-open' },
             { label: collection.name }
           ]"
           class="mb-3 breadcrumbs-light"

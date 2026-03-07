@@ -51,10 +51,10 @@ useSeoMeta({
     () =>
       data.value?.collection.name
         ? `${data.value.collection.name} by @${username.value}`
-        : 'Collection'
+        : 'Cookbook'
   ),
   description: computed(
-    () => data.value?.collection.description || 'Recipe collection'
+    () => data.value?.collection.description || 'Recipe cookbook'
   ),
 })
 
@@ -103,10 +103,10 @@ function getTotalTime(recipe: Recipe): string {
         />
       </div>
       <h2 class="text-xl font-display text-neutral-700 dark:text-neutral-100 mb-2">
-        Collection Not Found
+        Cookbook Not Found
       </h2>
       <p class="text-neutral-500 dark:text-neutral-400 mb-6">
-        This collection doesn't exist or is private.
+        This cookbook doesn't exist or is private.
       </p>
       <UButton
         to="/browse"
@@ -187,7 +187,7 @@ function getTotalTime(recipe: Recipe): string {
           No recipes yet
         </h2>
         <p class="text-neutral-500 dark:text-neutral-400">
-          This collection is empty.
+          This cookbook is empty.
         </p>
       </div>
 

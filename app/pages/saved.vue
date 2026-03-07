@@ -44,6 +44,12 @@ const viewMode = ref<'grid' | 'list'>('grid')
 const sortBy = ref<'newest-saved' | 'oldest-saved' | 'a-z' | 'z-a' | 'cook-time'>('newest-saved')
 const searchQuery = ref('')
 
+// Track hydration state to avoid SSR/client mismatch
+const isHydrated = ref(false)
+
+// Use effective values that only change after hydration
+const effectiveViewMode = computed(() => isHydrated.value ? viewMode.value : 'grid')
+
 // Filters
 interface Filters {
   maxTime: number | null
@@ -63,11 +69,14 @@ const filters = ref<Filters>({
 const showFilterDrawer = ref(false)
 
 // Load preferences from localStorage
-onMounted(() => {
+// Use nextTick to wait for hydration to complete before applying localStorage preferences
+onMounted(async () => {
+  await nextTick()
   const savedView = localStorage.getItem('saved-view')
   const savedSort = localStorage.getItem('saved-sort')
   if (savedView === 'grid' || savedView === 'list') viewMode.value = savedView
   if (savedSort) sortBy.value = savedSort as typeof sortBy.value
+  isHydrated.value = true
 })
 
 // Save preferences to localStorage
@@ -198,29 +207,29 @@ const filteredRecipes = computed(() => {
     })
   }
 
-  // Sorting - add secondary sort by id for stable ordering
-  result.sort((a, b) => {
-    let primarySort = 0
-    switch (sortBy.value) {
-      case 'newest-saved':
-        primarySort = new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime()
-        break
-      case 'oldest-saved':
-        primarySort = new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime()
-        break
-      case 'a-z':
-        primarySort = a.title.localeCompare(b.title)
-        break
-      case 'z-a':
-        primarySort = b.title.localeCompare(a.title)
-        break
-      case 'cook-time':
-        primarySort = ((a.prepTime || 0) + (a.cookTime || 0)) - ((b.prepTime || 0) + (b.cookTime || 0))
-        break
-    }
-    // Secondary sort by id for stable ordering when primary sort values are equal
-    return primarySort !== 0 ? primarySort : b.id - a.id
-  })
+  // Sorting - only apply after hydration to avoid mismatch between SSR and client
+  // During SSR and initial hydration, use API's default order (newest-saved)
+  if (isHydrated.value && sortBy.value !== 'newest-saved') {
+    result.sort((a, b) => {
+      let primarySort = 0
+      switch (sortBy.value) {
+        case 'oldest-saved':
+          primarySort = new Date(a.savedAt).getTime() - new Date(b.savedAt).getTime()
+          break
+        case 'a-z':
+          primarySort = a.title.localeCompare(b.title)
+          break
+        case 'z-a':
+          primarySort = b.title.localeCompare(a.title)
+          break
+        case 'cook-time':
+          primarySort = ((a.prepTime || 0) + (a.cookTime || 0)) - ((b.prepTime || 0) + (b.cookTime || 0))
+          break
+      }
+      // Secondary sort by id for stable ordering when primary sort values are equal
+      return primarySort !== 0 ? primarySort : b.id - a.id
+    })
+  }
 
   return result
 })
@@ -407,7 +416,7 @@ function handleAddToCollection(recipeId: number): void {
 
           <!-- Grid View -->
           <div
-            v-else-if="viewMode === 'grid'"
+            v-else-if="effectiveViewMode === 'grid'"
             class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
           >
             <BrowseRecipeCard
