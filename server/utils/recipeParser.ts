@@ -444,6 +444,107 @@ function parseMicrodata($: cheerio.CheerioAPI): ParsedRecipe | null {
 }
 
 /**
+ * Check if text looks like valid ingredient (not navigation/garbage)
+ */
+function isValidIngredient(text: string): boolean {
+  const trimmed = text.trim()
+  // Too short or too long
+  if (trimmed.length < 3 || trimmed.length > 200) return false
+  // All caps (navigation menu items)
+  if (/^[A-Z\s&]+$/.test(trimmed) && trimmed.length < 50) return false
+  // Contains typical ingredient patterns
+  const hasAmount = /^\d|^[½¼¾⅓⅔⅛]|^a\s|^one\s|^two\s/i.test(trimmed)
+  const hasFoodWord = /salt|pepper|oil|butter|onion|garlic|chicken|beef|flour|sugar|egg|cream|milk|water|wine|stock|broth|tomato|carrot|celery|herb|spice|sauce|paste|leaf|leaves|clove|cup|tbsp|tsp|pound|lb|oz|gram/i.test(trimmed)
+  return hasAmount || hasFoodWord
+}
+
+/**
+ * Check if text looks like valid instruction (not navigation/comment)
+ */
+function isValidInstruction(text: string): boolean {
+  const trimmed = text.trim()
+  // Too short or too long
+  if (trimmed.length < 20 || trimmed.length > 1500) return false
+  // All caps (navigation menu items)
+  if (/^[A-Z\s&]+$/.test(trimmed)) return false
+  // Looks like a comment (has dates, reply, @mentions)
+  if (/\d{4}\s+at\s+\d+:\d+|Reply|@\w+/i.test(trimmed)) return false
+  // Looks like navigation
+  if (/^(RECIPES|COOKBOOKS|BREAKFAST|LUNCH|DINNER|SEARCH|MENU|HOME|ABOUT|CONTACT)/i.test(trimmed)) return false
+  // Contains typical instruction words
+  const hasActionWord = /^(add|mix|stir|cook|bake|heat|preheat|combine|whisk|pour|place|remove|let|allow|set|cover|bring|reduce|simmer|boil|fry|sauté|saute|season|serve|transfer|slice|chop|dice|mince|drain|pat|dry|salt|brush|arrange|spread|layer|fold|knead|roll|shape|chill|refrigerate|freeze|thaw|marinate|rest)/i.test(trimmed)
+  const hasProcess = /(until|minutes|hours|degrees|°|oven|pan|pot|bowl|skillet|baking|medium|high|low|tender|golden|brown|crispy|done|cooked|heated|warm|cool|room temperature)/i.test(trimmed)
+  return hasActionWord || hasProcess
+}
+
+/**
+ * Find content that appears after a heading containing specific text
+ */
+function findContentAfterHeading($: cheerio.CheerioAPI, headingText: string, contentType: 'list' | 'steps'): string[] {
+  const results: string[] = []
+  const headingRegex = new RegExp(headingText, 'i')
+
+  // Find headings (h1-h6, strong, b) that contain the text
+  $('h1, h2, h3, h4, h5, h6, strong, b, p').each((_, el) => {
+    const $el = $(el)
+    const text = $el.text().trim()
+
+    if (headingRegex.test(text) && text.length < 50) {
+      // Found a heading, now look for content after it
+      let $next = $el.next()
+      let attempts = 0
+
+      while ($next.length && attempts < 20) {
+        const tagName = $next.prop('tagName')?.toLowerCase()
+
+        if (contentType === 'list' && (tagName === 'ul' || tagName === 'ol')) {
+          // Found a list - extract items
+          $next.find('li').each((_, li) => {
+            const itemText = $(li).text().trim()
+            if (itemText) results.push(itemText)
+          })
+          if (results.length > 0) return false // break .each()
+        }
+
+        if (contentType === 'steps') {
+          // Look for paragraphs or list items that might be steps
+          if (tagName === 'ol' || tagName === 'ul') {
+            $next.find('li').each((_, li) => {
+              const itemText = $(li).text().trim()
+              if (itemText) results.push(itemText)
+            })
+            if (results.length > 0) return false
+          }
+          if (tagName === 'p') {
+            const pText = $next.text().trim()
+            if (pText.length > 20) results.push(pText)
+          }
+        }
+
+        // Stop if we hit another heading
+        if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName || '')) {
+          if (results.length > 0) return false
+        }
+
+        $next = $next.next()
+        attempts++
+      }
+
+      // Also check if the heading is inside a container with content
+      const $parent = $el.parent()
+      if (results.length === 0 && contentType === 'list') {
+        $parent.find('ul li, ol li').each((_, li) => {
+          const itemText = $(li).text().trim()
+          if (itemText && !headingRegex.test(itemText)) results.push(itemText)
+        })
+      }
+    }
+  })
+
+  return results
+}
+
+/**
  * Fallback: Try to extract recipe from common HTML patterns
  */
 function parseHtmlFallback($: cheerio.CheerioAPI): ParsedRecipe | null {
@@ -457,8 +558,8 @@ function parseHtmlFallback($: cheerio.CheerioAPI): ParsedRecipe | null {
 
   if (!title) return null
 
-  // Try to find ingredients
-  const ingredients: string[] = []
+  // Try to find ingredients - first try class-based selectors
+  let ingredients: string[] = []
   const ingredientSelectors = [
     '[class*="ingredient"] li',
     '[class*="ingredients"] li',
@@ -468,35 +569,61 @@ function parseHtmlFallback($: cheerio.CheerioAPI): ParsedRecipe | null {
   ]
 
   for (const selector of ingredientSelectors) {
+    const found: string[] = []
     $(selector).each((_, el) => {
       const text = $(el).text().trim()
-      if (text && text.length < 200) {
-        ingredients.push(text)
+      if (isValidIngredient(text)) {
+        found.push(text)
       }
     })
-    if (ingredients.length > 0) break
+    if (found.length > 0) {
+      ingredients = found
+      break
+    }
   }
 
-  // Try to find instructions
-  const instructions: string[] = []
+  // If no ingredients found, try finding content after "Ingredients" heading
+  if (ingredients.length === 0) {
+    const headingIngredients = findContentAfterHeading($, 'ingredients', 'list')
+    ingredients = headingIngredients.filter(isValidIngredient)
+  }
+
+  // Try to find instructions - first try class-based selectors
+  let instructions: string[] = []
   const instructionSelectors = [
     '[class*="instruction"] li',
     '[class*="instructions"] li',
     '[class*="direction"] li',
     '[class*="directions"] li',
-    '[class*="step"] p',
     '.recipe-instructions li',
     '.recipe-directions li',
+    '.recipe-steps li',
   ]
 
   for (const selector of instructionSelectors) {
+    const found: string[] = []
     $(selector).each((_, el) => {
       const text = $(el).text().trim()
-      if (text && text.length > 10 && text.length < 1000) {
-        instructions.push(text)
+      if (isValidInstruction(text)) {
+        found.push(text)
       }
     })
-    if (instructions.length > 0) break
+    if (found.length > 0) {
+      instructions = found
+      break
+    }
+  }
+
+  // If no instructions found, try finding content after headings
+  if (instructions.length === 0) {
+    for (const heading of ['instructions', 'directions', 'method', 'steps', 'how to make']) {
+      const headingInstructions = findContentAfterHeading($, heading, 'steps')
+      const valid = headingInstructions.filter(isValidInstruction)
+      if (valid.length > 0) {
+        instructions = valid
+        break
+      }
+    }
   }
 
   // Try to find image

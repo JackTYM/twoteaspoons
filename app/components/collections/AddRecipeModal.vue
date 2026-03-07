@@ -63,11 +63,16 @@ function toggleRecipe(recipeId: number): void {
 
 // Adding state
 const adding = ref(false)
+const addProgress = ref(0)
+const addedCount = ref(0)
 
 async function addSelected(): Promise<void> {
   if (selectedIds.value.size === 0) return
 
   adding.value = true
+  addProgress.value = 0
+  addedCount.value = 0
+
   try {
     const recipeIds = Array.from(selectedIds.value)
 
@@ -80,12 +85,19 @@ async function addSelected(): Promise<void> {
       return
     }
 
-    // Otherwise, add to existing collection via API
-    await $fetch(`/api/collections/by-id/${collectionIdentifier.value}/recipes`, {
-      method: 'POST',
-      body: { recipeIds },
-      headers: getAuthHeaders(),
-    })
+    // Add recipes one at a time for progress feedback
+    const total = recipeIds.length
+    for (let i = 0; i < total; i++) {
+      const recipeId = recipeIds[i]
+      await $fetch(`/api/collections/by-id/${collectionIdentifier.value}/recipes`, {
+        method: 'POST',
+        body: { recipeId },
+        headers: getAuthHeaders(),
+      })
+      addedCount.value = i + 1
+      addProgress.value = ((i + 1) / total) * 100
+    }
+
     selectedIds.value = new Set()
     open.value = false
     emit('added', recipeIds)
@@ -93,6 +105,8 @@ async function addSelected(): Promise<void> {
     console.error('Failed to add recipes:', err)
   }
   adding.value = false
+  addProgress.value = 0
+  addedCount.value = 0
 }
 
 // Reset selection when modal closes
@@ -230,11 +244,25 @@ watch(open, (isOpen) => {
 
         <!-- Footer -->
         <div class="p-4 border-t border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800">
+          <!-- Progress bar during adding -->
+          <div v-if="adding" class="mb-3">
+            <div class="flex items-center justify-between text-sm text-neutral-600 dark:text-neutral-400 mb-1">
+              <span>Adding recipes...</span>
+              <span>{{ addedCount }} / {{ selectedIds.size }}</span>
+            </div>
+            <div class="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
+              <div
+                class="h-full bg-primary-500 transition-all duration-200 ease-out"
+                :style="{ width: `${addProgress}%` }"
+              />
+            </div>
+          </div>
+
           <UButton
             color="primary"
             block
             size="lg"
-            :disabled="selectedIds.size === 0"
+            :disabled="selectedIds.size === 0 || adding"
             :loading="adding"
             class="press-effect"
             @click="addSelected"

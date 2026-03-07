@@ -21,6 +21,11 @@ const parseError = ref<string | null>(null)
 const importing = ref(false)
 const importResult = ref<ImportResponse | null>(null)
 
+// Progress tracking
+const importProgress = ref(0)
+const currentlyImporting = ref<string | null>(null)
+const liveResults = ref<ImportResponse['results']>([])
+
 // Valid category slugs for documentation
 const validCategories = {
   meal: ['breakfast', 'brunch', 'lunch', 'dinner', 'snack', 'dessert', 'appetizer', 'side-dish', 'drink', 'sauce'],
@@ -90,20 +95,61 @@ async function importRecipes(): Promise<void> {
 
   importing.value = true
   importResult.value = null
+  importProgress.value = 0
+  liveResults.value = []
+  currentlyImporting.value = null
 
-  try {
-    const result = await $fetch<ImportResponse>('/api/import/recipes', {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: { recipes: parsedRecipes.value },
-    })
-    importResult.value = result
-  } catch (err) {
-    console.error('Import failed:', err)
-    parseError.value = err instanceof Error ? err.message : 'Import failed'
+  const total = parsedRecipes.value.length
+  let successful = 0
+  let failed = 0
+
+  // Import recipes one at a time for progress feedback
+  for (let i = 0; i < parsedRecipes.value.length; i++) {
+    const recipe = parsedRecipes.value[i]
+    if (!recipe) continue
+
+    const recipeTitle = recipe.title || `Recipe ${i + 1}`
+    currentlyImporting.value = recipeTitle
+
+    try {
+      const result = await $fetch<ImportResponse>('/api/import/recipes', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: { recipes: [recipe] },
+      })
+
+      // Add result to live results
+      if (result.results[0]) {
+        liveResults.value.push(result.results[0])
+        if (result.results[0].success) {
+          successful++
+        } else {
+          failed++
+        }
+      }
+    } catch (err) {
+      // Add error result
+      liveResults.value.push({
+        title: recipeTitle,
+        success: false,
+        error: err instanceof Error ? err.message : 'Import failed',
+      })
+      failed++
+    }
+
+    importProgress.value = ((i + 1) / total) * 100
   }
 
+  currentlyImporting.value = null
   importing.value = false
+
+  // Set final result
+  importResult.value = {
+    total,
+    successful,
+    failed,
+    results: liveResults.value,
+  }
 }
 
 function reset(): void {
@@ -111,6 +157,9 @@ function reset(): void {
   parsedRecipes.value = []
   parseError.value = null
   importResult.value = null
+  importProgress.value = 0
+  currentlyImporting.value = null
+  liveResults.value = []
   if (fileInput.value) {
     fileInput.value.value = ''
   }
@@ -298,8 +347,52 @@ const exampleJson = `{
         </div>
       </div>
 
+      <!-- Import Progress -->
+      <div v-if="importing" class="mb-6 p-6 bg-neutral-100 dark:bg-neutral-800 rounded-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
+            Importing Recipes...
+          </h2>
+          <span class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ liveResults.length }} / {{ parsedRecipes.length }}
+          </span>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden mb-3">
+          <div
+            class="h-full bg-primary-500 transition-all duration-300 ease-out"
+            :style="{ width: `${importProgress}%` }"
+          />
+        </div>
+
+        <!-- Currently importing -->
+        <p v-if="currentlyImporting" class="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+          Importing: <span class="font-medium text-neutral-700 dark:text-neutral-100">{{ currentlyImporting }}</span>
+        </p>
+
+        <!-- Live results -->
+        <div v-if="liveResults.length > 0" class="space-y-2 max-h-48 overflow-y-auto">
+          <div
+            v-for="(result, index) in liveResults"
+            :key="index"
+            class="flex items-center justify-between p-2 bg-white dark:bg-neutral-900 rounded-lg"
+          >
+            <div class="flex items-center gap-2">
+              <UIcon
+                :name="result.success ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'"
+                class="w-4 h-4"
+                :class="result.success ? 'text-sage-500' : 'text-terracotta-500'"
+              />
+              <span class="text-sm text-neutral-700 dark:text-neutral-100">{{ result.title }}</span>
+            </div>
+            <span v-if="result.error" class="text-xs text-terracotta-500">{{ result.error }}</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Parsed Preview -->
-      <div v-if="parsedRecipes.length > 0" class="mb-6">
+      <div v-else-if="parsedRecipes.length > 0" class="mb-6">
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
             Preview ({{ parsedRecipes.length }} recipes)
