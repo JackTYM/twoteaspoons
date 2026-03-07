@@ -90,7 +90,7 @@ const mealTypeColor = computed(() => {
     <!-- Remove Button -->
     <button
       type="button"
-      class="absolute top-1 right-1 p-1 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity text-error-500 hover:bg-error-100 dark:hover:bg-error-900/30 rounded z-10"
+      class="absolute top-1 right-1 p-1 opacity-60 sm:opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity text-error-500 hover:bg-error-100 dark:hover:bg-error-900/30 rounded z-20"
       aria-label="Remove from meal plan"
       @click.stop.prevent="emit('remove', planId)"
     >

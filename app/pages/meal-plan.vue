@@ -98,23 +98,27 @@ const deleting = ref(false)
 async function removeMealPlan(planId: number): Promise<void> {
   if (!data.value) return
 
-  // Store the plan and index for potential rollback
-  const planIndex = data.value.mealPlans.findIndex(p => p.id === planId)
-  if (planIndex === -1) return
-  const removedPlan = data.value.mealPlans[planIndex]
+  // Store the plan for potential rollback
+  const removedPlan = data.value.mealPlans.find(p => p.id === planId)
   if (!removedPlan) return
 
   deleting.value = true
 
-  // Optimistic update - remove in place
-  data.value.mealPlans.splice(planIndex, 1)
+  // Optimistic update - reassign array to trigger reactivity
+  data.value = {
+    ...data.value,
+    mealPlans: data.value.mealPlans.filter(p => p.id !== planId),
+  }
 
   try {
     await $fetch(`/api/meal-plans/${planId}`, { method: 'DELETE', headers: getAuthHeaders() })
   } catch (err) {
-    // Revert on error - add back in place
+    // Revert on error - add back
     if (data.value) {
-      data.value.mealPlans.splice(planIndex, 0, removedPlan)
+      data.value = {
+        ...data.value,
+        mealPlans: [...data.value.mealPlans, removedPlan],
+      }
     }
     console.error('Failed to remove meal plan:', err)
   }
@@ -168,8 +172,11 @@ async function addMealPlan(recipeId: number): Promise<void> {
     },
   }
 
-  // Optimistic update - push to array in place
-  data.value.mealPlans.push(optimisticPlan)
+  // Optimistic update - reassign array to trigger reactivity
+  data.value = {
+    ...data.value,
+    mealPlans: [...data.value.mealPlans, optimisticPlan],
+  }
 
   try {
     const result = await $fetch<{ mealPlan: MealPlan }>('/api/meal-plans', {
@@ -182,19 +189,21 @@ async function addMealPlan(recipeId: number): Promise<void> {
       headers: getAuthHeaders(),
     })
 
-    // Replace optimistic entry with real data in place
+    // Replace optimistic entry with real data
     if (data.value) {
-      const index = data.value.mealPlans.findIndex(p => p.id === optimisticId)
-      if (index !== -1) {
-        data.value.mealPlans.splice(index, 1, result.mealPlan)
+      data.value = {
+        ...data.value,
+        mealPlans: data.value.mealPlans.map(p =>
+          p.id === optimisticId ? result.mealPlan : p
+        ),
       }
     }
   } catch (err) {
-    // Revert optimistic update on error - remove in place
+    // Revert optimistic update on error
     if (data.value) {
-      const index = data.value.mealPlans.findIndex(p => p.id === optimisticId)
-      if (index !== -1) {
-        data.value.mealPlans.splice(index, 1)
+      data.value = {
+        ...data.value,
+        mealPlans: data.value.mealPlans.filter(p => p.id !== optimisticId),
       }
     }
     console.error('Failed to add meal plan:', err)
