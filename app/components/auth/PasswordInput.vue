@@ -70,6 +70,7 @@ const strengthTextColor = computed(() => {
         icon="i-heroicons-lock-closed"
         :required="required"
         :minlength="minlength"
+        size="lg"
         class="pr-10"
       />
       <button

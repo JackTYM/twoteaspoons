@@ -42,7 +42,7 @@ async function handleSubmit(): Promise<void> {
 </script>
 
 <template>
-  <AuthAuthLayout
+  <AuthLayout
     title="Welcome back"
     subtitle="Sign in to access your recipes"
   >
@@ -149,5 +149,5 @@ async function handleSubmit(): Promise<void> {
         </NuxtLink>
       </p>
     </UCard>
-  </AuthAuthLayout>
+  </AuthLayout>
 </template>
