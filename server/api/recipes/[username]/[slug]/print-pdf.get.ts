@@ -74,8 +74,9 @@ export default defineEventHandler(async (event) => {
     const leftMargin = 0.2 * 72
     const y = pageHeight - leftMargin
     // Use minimum of actual card width (prevents overflow at large scales) and scaled width (maintains logical wrap points at small scales)
+    // Multiply by 0.8 to wrap 20% earlier for better readability
     const baseMaxWidth = pageHeight - 2 * leftMargin
-    const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale)
+    const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale) * 0.8
     const wrapSpacing = 2 * scale
 
     const metaItems = [
@@ -333,7 +334,7 @@ export default defineEventHandler(async (event) => {
     const lineSpacing = 3 * scale
     const wrapSpacing = 2 * scale
     const baseMaxWidth = pageWidth - 2 * margin
-    const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale)
+    const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale) * 0.8
 
     const metaItems2 = [
       prepTime ? `Prep: ${prepTime}` : '',
@@ -576,8 +577,9 @@ export default defineEventHandler(async (event) => {
       const leftMargin = 0.2 * 72
       const topMargin = 0.3 * 72
       // Use minimum of actual card width (prevents overflow at large scales) and scaled width (maintains logical wrap points at small scales)
+      // Multiply by 0.8 to wrap 20% earlier for better readability
       const baseMaxWidth = pageHeight - 2 * leftMargin
-      const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale)
+      const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale) * 0.8
       const y = pageHeight - leftMargin
 
       // Pre-calculate total content height
@@ -689,7 +691,7 @@ export default defineEventHandler(async (event) => {
       const wrapSpacing = 2 * scale
       const stepSpacing = 4 * scale
       const baseMaxWidth = dims.width - 2 * margin
-      const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale)
+      const maxTextWidth = Math.min(baseMaxWidth, baseMaxWidth * scale) * 0.8
 
       // Pre-calculate total content height
       let totalContentHeight = headerSize + headerSpacing
