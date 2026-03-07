@@ -142,6 +142,7 @@ async function handleSubmit(formData: FormData): Promise<void> {
           sourceUrl: recipe.sourceUrl || undefined,
           sourceAuthor: recipe.sourceAuthor || undefined,
           sourceSite: recipe.sourceSite || undefined,
+          categories: recipe.categories,
           ingredients: recipe.ingredients.map((i) => ({
             id: i.id,
             amount: i.amount || undefined,

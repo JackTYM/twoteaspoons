@@ -48,6 +48,47 @@ const extraUnits = [
   'pinch',
 ]
 
+// Normalize unit to match our standard format (handles plurals, case variations)
+function normalizeUnit(unit: string): string {
+  const u = unit.toLowerCase().trim()
+  // Map common variations to standard form
+  const unitMap: Record<string, string> = {
+    'cups': 'cup',
+    'ounces': 'oz',
+    'ounce': 'oz',
+    'pounds': 'lb',
+    'pound': 'lb',
+    'lbs': 'lb',
+    'grams': 'g',
+    'gram': 'g',
+    'kilograms': 'kg',
+    'kilogram': 'kg',
+    'milliliters': 'ml',
+    'milliliter': 'ml',
+    'liters': 'L',
+    'liter': 'L',
+    'litres': 'L',
+    'litre': 'L',
+    'pieces': 'piece',
+    'slices': 'slice',
+    'cloves': 'clove',
+    'cans': 'can',
+    'bunches': 'bunch',
+    'pinches': 'pinch',
+    'teaspoon': 'tsp',
+    'teaspoons': 'tsp',
+    'tablespoon': 'tbsp',
+    'tablespoons': 'tbsp',
+  }
+  return unitMap[u] || unit
+}
+
+// Check if a unit matches one of our extra units (dropdown)
+function matchesExtraUnit(unit: string): string | undefined {
+  const normalized = normalizeUnit(unit)
+  return extraUnits.find(u => u === normalized || u === unit)
+}
+
 function updateField(index: number, field: keyof IngredientInput, value: string): void {
   const ingredient = props.ingredients[index]
   if (!ingredient) return
@@ -62,7 +103,7 @@ function toggleUnit(index: number, unit: string): void {
   if (!ingredient) return
   emit('update', index, {
     ...ingredient,
-    unit: ingredient.unit === unit ? '' : unit,
+    unit: normalizeUnit(ingredient.unit) === unit ? '' : unit,
   })
 }
 
@@ -152,7 +193,7 @@ function toggleNotes(id: string): void {
                   type="button"
                   class="w-8 py-1 text-xs font-medium rounded transition-colors text-center"
                   :class="[
-                    element.unit === unit
+                    normalizeUnit(element.unit) === unit
                       ? 'bg-primary-500 text-white'
                       : 'bg-neutral-100 dark:bg-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-500'
                   ]"
@@ -164,7 +205,7 @@ function toggleNotes(id: string): void {
 
               <!-- More Units Dropdown -->
               <USelect
-                :model-value="extraUnits.includes(element.unit) ? element.unit : undefined"
+                :model-value="matchesExtraUnit(element.unit)"
                 :items="extraUnits"
                 placeholder="+"
                 size="xs"

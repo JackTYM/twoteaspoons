@@ -91,7 +91,7 @@ function getCategoryColor(type: string): string {
 <template>
   <div class="relative">
     <!-- Hero Cover Photo -->
-    <div class="relative overflow-hidden rounded-2xl aspect-[4/3] sm:aspect-[21/9] md:aspect-[3/1]">
+    <div class="relative overflow-hidden rounded-2xl aspect-[4/3] sm:aspect-[16/9] md:aspect-[21/9] min-h-[280px] sm:min-h-[320px]">
       <!-- Cover Image or Placeholder -->
       <div
         v-if="recipe.coverPhoto"
@@ -122,7 +122,7 @@ function getCategoryColor(type: string): string {
       <div class="absolute bottom-0 left-0 right-0 p-4 sm:p-6 md:p-8">
         <div class="max-w-4xl mx-auto">
           <!-- Title -->
-          <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display text-white mb-2 sm:mb-3 drop-shadow-lg">
+          <h1 class="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-display text-white mb-2 sm:mb-3 drop-shadow-lg break-words line-clamp-2">
             {{ recipe.title }}
           </h1>
 
@@ -206,13 +206,13 @@ function getCategoryColor(type: string): string {
             </div>
           </div>
 
-          <!-- Category Chips -->
+          <!-- Category Chips (limited to first 6 to prevent overflow) -->
           <div
             v-if="recipe.categories && recipe.categories.length > 0"
             class="flex flex-wrap gap-1.5 mt-3"
           >
             <NuxtLink
-              v-for="category in recipe.categories"
+              v-for="category in recipe.categories.slice(0, 6)"
               :key="category.id"
               :to="`/browse?categories=${category.slug}`"
               class="inline-flex items-center gap-1 px-2.5 py-1 backdrop-blur-sm rounded-full text-white text-xs font-medium hover:ring-2 hover:ring-white/30 transition-all"
@@ -225,6 +225,12 @@ function getCategoryColor(type: string): string {
               />
               {{ category.name }}
             </NuxtLink>
+            <span
+              v-if="recipe.categories.length > 6"
+              class="inline-flex items-center px-2.5 py-1 bg-white/20 backdrop-blur-sm rounded-full text-white text-xs"
+            >
+              +{{ recipe.categories.length - 6 }} more
+            </span>
           </div>
         </div>
       </div>
