@@ -27,7 +27,7 @@ npm run test:e2e     # Playwright E2E tests
 npm run lint         # ESLint
 npm run lint:fix     # ESLint with auto-fix
 npm run typecheck    # TypeScript strict check
-npm run db:migrate   # Run Drizzle migrations
+npm run db:push      # Push schema changes to database
 npm run db:studio    # Open Drizzle Studio
 ```
 
@@ -306,6 +306,18 @@ useSchemaOrg([
 - 3x5 card layout: specific dimensions, margins
 - Multi-card continuation with page breaks
 - Format selection UI with visual icons
+
+## UI/UX Development
+
+### Frontend Design Skill
+When implementing UI features, use the `frontend-design` skill for:
+- Creating new components with distinctive, production-grade aesthetics
+- Implementing empty states, placeholders, and visual polish
+- Adding animations, micro-interactions, and page transitions
+- Ensuring designs match the warm, homey farmhouse aesthetic
+
+### Current UI Improvements
+See `SUGGESTIONS.md` for the full list of planned UI/UX improvements.
 
 ## Resources & References
 

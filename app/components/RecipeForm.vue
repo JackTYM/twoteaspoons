@@ -1,5 +1,13 @@
 <script setup lang="ts">
+import draggable from 'vuedraggable'
+import FormSection from '~/components/recipe-form/FormSection.vue'
+import IngredientRow from '~/components/recipe-form/IngredientRow.vue'
+import InstructionStep from '~/components/recipe-form/InstructionStep.vue'
+import FloatingActionBar from '~/components/recipe-form/FloatingActionBar.vue'
+import { useAutosave } from '~/composables/useAutosave'
+
 interface IngredientInput {
+  id: string
   amount: string
   unit: string
   item: string
@@ -7,6 +15,7 @@ interface IngredientInput {
 }
 
 interface InstructionInput {
+  id: string
   content: string
   timerMinutes: number | null
 }
@@ -36,6 +45,7 @@ interface Props {
   }
   submitLabel?: string
   loading?: boolean
+  autosaveKey?: string
 }
 
 interface FormData {
@@ -49,19 +59,27 @@ interface FormData {
   sourceUrl: string
   sourceAuthor: string
   sourceSite: string
-  ingredients: IngredientInput[]
-  instructions: InstructionInput[]
+  ingredients: Omit<IngredientInput, 'id'>[]
+  instructions: Omit<InstructionInput, 'id'>[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
   initialData: undefined,
   submitLabel: 'Save Recipe',
   loading: false,
+  autosaveKey: 'recipe',
 })
 
 const emit = defineEmits<{
   submit: [data: FormData]
 }>()
+
+const router = useRouter()
+
+// Generate unique IDs
+function generateId(): string {
+  return crypto.randomUUID()
+}
 
 // Form state
 const form = reactive({
@@ -77,32 +95,92 @@ const form = reactive({
   sourceSite: props.initialData?.sourceSite || '',
 })
 
+// Ingredients with unique IDs
+const ingredients = ref<IngredientInput[]>(
+  props.initialData?.ingredients?.map(i => ({
+    id: generateId(),
+    amount: String(i.amount || ''),
+    unit: i.unit || '',
+    item: i.item,
+    notes: i.notes || '',
+  })) || [{ id: generateId(), amount: '', unit: '', item: '', notes: '' }]
+)
+
+// Instructions with unique IDs
+const instructions = ref<InstructionInput[]>(
+  props.initialData?.instructions?.map(i => ({
+    id: generateId(),
+    content: i.content,
+    timerMinutes: i.timerMinutes || null,
+  })) || [{ id: generateId(), content: '', timerMinutes: null }]
+)
+
 // Image upload state
 const uploading = ref(false)
 const uploadError = ref('')
-const isDragging = ref(false)
+const showCropper = ref(false)
+const { getAuthHeaders } = useAuth()
 
-async function handleImageUpload(file: File): Promise<void> {
-  if (!file.type.startsWith('image/')) {
-    uploadError.value = 'Please upload an image file'
-    return
+// Autosave setup
+const autosaveData = computed(() => ({
+  form: { ...form },
+  ingredients: ingredients.value,
+  instructions: instructions.value,
+}))
+
+const { status: autosaveStatus, loadDraft, clearDraft, hasDraft } = useAutosave(
+  autosaveData,
+  props.autosaveKey
+)
+
+// Show draft recovery prompt
+const showDraftPrompt = ref(false)
+onMounted(() => {
+  if (hasDraft.value && !props.initialData?.title) {
+    showDraftPrompt.value = true
   }
+})
 
-  if (file.size > 10 * 1024 * 1024) {
-    uploadError.value = 'Image must be less than 10MB'
-    return
+function recoverDraft(): void {
+  const draft = loadDraft()
+  if (draft) {
+    Object.assign(form, draft.form)
+    ingredients.value = draft.ingredients
+    instructions.value = draft.instructions
   }
+  showDraftPrompt.value = false
+}
 
+function discardDraft(): void {
+  clearDraft()
+  showDraftPrompt.value = false
+}
+
+// Form completion progress
+const completionPercent = computed(() => {
+  let filled = 0
+  const total = 5
+  if (form.title) filled++
+  if (form.coverPhoto) filled++
+  if (ingredients.value.some(i => i.item.trim())) filled++
+  if (instructions.value.some(i => i.content.trim())) filled++
+  if (form.prepTime || form.cookTime) filled++
+  return Math.round((filled / total) * 100)
+})
+
+// Image handling
+async function handleCroppedImage(blob: Blob): Promise<void> {
   uploading.value = true
   uploadError.value = ''
 
   try {
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', blob, 'cover.jpg')
 
     const response = await $fetch<{ url: string }>('/api/upload', {
       method: 'POST',
       body: formData,
+      headers: getAuthHeaders(),
     })
 
     form.coverPhoto = response.url
@@ -114,49 +192,21 @@ async function handleImageUpload(file: File): Promise<void> {
   }
 }
 
-function handleDrop(event: DragEvent): void {
-  event.preventDefault()
-  isDragging.value = false
-
-  const file = event.dataTransfer?.files[0]
-  if (file) {
-    handleImageUpload(file)
-  }
-}
-
-function handleDragOver(event: DragEvent): void {
-  event.preventDefault()
-  isDragging.value = true
-}
-
-function handleDragLeave(): void {
-  isDragging.value = false
-}
-
-function handleFileSelect(event: Event): void {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  if (file) {
-    handleImageUpload(file)
-  }
+function openCropper(): void {
+  showCropper.value = true
 }
 
 function removeImage(): void {
   form.coverPhoto = ''
 }
 
-// Ingredients
-const ingredients = ref<IngredientInput[]>(
-  props.initialData?.ingredients?.map(i => ({
-    amount: String(i.amount || ''),
-    unit: i.unit || '',
-    item: i.item,
-    notes: i.notes || '',
-  })) || [{ amount: '', unit: '', item: '', notes: '' }]
-)
-
+// Ingredients management
 function addIngredient(): void {
-  ingredients.value.push({ amount: '', unit: '', item: '', notes: '' })
+  ingredients.value.push({ id: generateId(), amount: '', unit: '', item: '', notes: '' })
+}
+
+function updateIngredient(index: number, ingredient: IngredientInput): void {
+  ingredients.value[index] = ingredient
 }
 
 function removeIngredient(index: number): void {
@@ -165,16 +215,13 @@ function removeIngredient(index: number): void {
   }
 }
 
-// Instructions
-const instructions = ref<InstructionInput[]>(
-  props.initialData?.instructions?.map(i => ({
-    content: i.content,
-    timerMinutes: i.timerMinutes || null,
-  })) || [{ content: '', timerMinutes: null }]
-)
-
+// Instructions management
 function addInstruction(): void {
-  instructions.value.push({ content: '', timerMinutes: null })
+  instructions.value.push({ id: generateId(), content: '', timerMinutes: null })
+}
+
+function updateInstruction(index: number, instruction: InstructionInput): void {
+  instructions.value[index] = instruction
 }
 
 function removeInstruction(index: number): void {
@@ -183,387 +230,356 @@ function removeInstruction(index: number): void {
   }
 }
 
-// Common units
-const unitOptions = [
-  { value: '', label: 'unit' },
-  { value: 'tsp', label: 'tsp' },
-  { value: 'tbsp', label: 'tbsp' },
-  { value: 'cup', label: 'cup' },
-  { value: 'oz', label: 'oz' },
-  { value: 'lb', label: 'lb' },
-  { value: 'g', label: 'g' },
-  { value: 'kg', label: 'kg' },
-  { value: 'ml', label: 'ml' },
-  { value: 'L', label: 'L' },
-  { value: 'piece', label: 'piece' },
-  { value: 'slice', label: 'slice' },
-  { value: 'clove', label: 'clove' },
-  { value: 'can', label: 'can' },
-  { value: 'bunch', label: 'bunch' },
-  { value: 'pinch', label: 'pinch' },
-]
-
-// Source section
-const showSource = ref(!!props.initialData?.sourceUrl)
-
-// Submit
+// Submit handler - strips IDs for backwards compatibility
 function handleSubmit(): void {
   const data: FormData = {
     ...form,
-    ingredients: ingredients.value.filter(i => i.item.trim()),
-    instructions: instructions.value.filter(i => i.content.trim()),
+    ingredients: ingredients.value
+      .filter(i => i.item.trim())
+      .map(({ id: _id, ...rest }) => rest),
+    instructions: instructions.value
+      .filter(i => i.content.trim())
+      .map(({ id: _id, ...rest }) => rest),
   }
   emit('submit', data)
+  clearDraft()
+}
+
+function handleCancel(): void {
+  router.back()
 }
 </script>
 
 <template>
-  <form
-    class="space-y-8"
-    @submit.prevent="handleSubmit"
-  >
-    <!-- Basic Info -->
-    <div class="space-y-4">
-      <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-        Basic Information
-      </h2>
-
-      <UFormField
-        label="Title"
-        name="title"
-        required
+  <div>
+    <!-- Draft Recovery Prompt -->
+    <Transition
+      enter-active-class="transition-all duration-300 ease-out"
+      enter-from-class="opacity-0 -translate-y-2"
+      enter-to-class="opacity-100 translate-y-0"
+      leave-active-class="transition-all duration-200 ease-in"
+      leave-from-class="opacity-100 translate-y-0"
+      leave-to-class="opacity-0 -translate-y-2"
+    >
+      <UAlert
+        v-if="showDraftPrompt"
+        color="warning"
+        icon="i-heroicons-document-duplicate"
+        title="Unsaved draft found"
+        description="Would you like to recover your previous draft?"
+        class="mb-6"
       >
-        <UInput
-          v-model="form.title"
-          placeholder="Recipe title"
-          required
-        />
-      </UFormField>
+        <template #actions>
+          <div class="flex gap-2">
+            <UButton
+              color="primary"
+              size="sm"
+              @click="recoverDraft"
+            >
+              Recover
+            </UButton>
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="discardDraft"
+            >
+              Discard
+            </UButton>
+          </div>
+        </template>
+      </UAlert>
+    </Transition>
 
-      <UFormField
-        label="Description"
-        name="description"
+    <form
+      class="space-y-6 pb-24"
+      @submit.prevent="handleSubmit"
+    >
+      <!-- Basic Information Section -->
+      <FormSection
+        title="Basic Information"
+        icon="i-heroicons-document-text"
       >
-        <UTextarea
-          v-model="form.description"
-          placeholder="Brief description of this recipe"
-          :rows="3"
-        />
-      </UFormField>
-
-      <div class="grid grid-cols-3 gap-4">
-        <UFormField
-          label="Prep Time (min)"
-          name="prepTime"
-        >
-          <UInput
-            v-model.number="form.prepTime"
-            type="number"
-            min="0"
-            placeholder="15"
-          />
-        </UFormField>
-        <UFormField
-          label="Cook Time (min)"
-          name="cookTime"
-        >
-          <UInput
-            v-model.number="form.cookTime"
-            type="number"
-            min="0"
-            placeholder="30"
-          />
-        </UFormField>
-        <UFormField
-          label="Servings"
-          name="servings"
-        >
-          <UInput
-            v-model.number="form.servings"
-            type="number"
-            min="1"
-            placeholder="4"
-          />
-        </UFormField>
-      </div>
-
-      <!-- Cover Photo Upload -->
-      <UFormField
-        label="Cover Photo"
-        name="coverPhoto"
-      >
-        <div
-          v-if="form.coverPhoto"
-          class="relative"
-        >
-          <img
-            :src="form.coverPhoto"
-            alt="Cover photo preview"
-            class="w-full h-48 object-cover rounded-lg"
+        <div class="space-y-4">
+          <UFormField
+            label="Title"
+            name="title"
+            required
           >
-          <UButton
-            type="button"
-            color="error"
-            variant="solid"
-            icon="i-heroicons-x-mark"
-            size="sm"
-            class="absolute top-2 right-2"
-            @click="removeImage"
-          />
-        </div>
-        <div
-          v-else
-          class="relative"
-          @drop="handleDrop"
-          @dragover="handleDragOver"
-          @dragleave="handleDragLeave"
-        >
-          <label
-            class="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors"
-            :class="[
-              isDragging
-                ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                : 'border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-800'
-            ]"
+            <UInput
+              v-model="form.title"
+              placeholder="Recipe title"
+              required
+            />
+          </UFormField>
+
+          <UFormField
+            label="Description"
+            name="description"
+          >
+            <UTextarea
+              v-model="form.description"
+              placeholder="Brief description of this recipe"
+              :rows="3"
+            />
+          </UFormField>
+
+          <div class="grid grid-cols-3 gap-4">
+            <UFormField
+              label="Prep Time (min)"
+              name="prepTime"
+            >
+              <UInput
+                v-model.number="form.prepTime"
+                type="number"
+                min="0"
+                placeholder="15"
+              />
+            </UFormField>
+            <UFormField
+              label="Cook Time (min)"
+              name="cookTime"
+            >
+              <UInput
+                v-model.number="form.cookTime"
+                type="number"
+                min="0"
+                placeholder="30"
+              />
+            </UFormField>
+            <UFormField
+              label="Servings"
+              name="servings"
+            >
+              <UInput
+                v-model.number="form.servings"
+                type="number"
+                min="1"
+                placeholder="4"
+              />
+            </UFormField>
+          </div>
+
+          <!-- Cover Photo Upload -->
+          <UFormField
+            label="Cover Photo"
+            name="coverPhoto"
           >
             <div
-              v-if="uploading"
-              class="flex flex-col items-center"
+              v-if="form.coverPhoto"
+              class="relative"
             >
-              <UIcon
-                name="i-heroicons-arrow-path"
-                class="w-10 h-10 text-neutral-400 animate-spin"
+              <img
+                :src="form.coverPhoto"
+                alt="Cover photo preview"
+                class="w-full aspect-video object-cover rounded-lg"
+              >
+              <UButton
+                type="button"
+                color="error"
+                variant="solid"
+                icon="i-heroicons-x-mark"
+                size="sm"
+                class="absolute top-2 right-2"
+                @click="removeImage"
               />
-              <span class="mt-2 text-sm text-neutral-500">Uploading...</span>
             </div>
             <div
               v-else
-              class="flex flex-col items-center"
+              class="relative"
             >
-              <UIcon
-                name="i-heroicons-photo"
-                class="w-10 h-10 text-neutral-400"
-              />
-              <span class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
-                <span class="font-medium text-primary-600 dark:text-primary-400">Click to upload</span>
-                or drag and drop
-              </span>
-              <span class="mt-1 text-xs text-neutral-400">
-                PNG, JPG, WebP up to 10MB
-              </span>
+              <button
+                type="button"
+                class="flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed rounded-lg cursor-pointer transition-colors border-neutral-300 dark:border-neutral-600 hover:bg-neutral-50 dark:hover:bg-neutral-700 hover:border-primary-400 dark:hover:border-primary-500"
+                @click="openCropper"
+              >
+                <div
+                  v-if="uploading"
+                  class="flex flex-col items-center"
+                >
+                  <UIcon
+                    name="i-heroicons-arrow-path"
+                    class="w-10 h-10 text-neutral-400 animate-spin"
+                  />
+                  <span class="mt-2 text-sm text-neutral-500">Uploading...</span>
+                </div>
+                <div
+                  v-else
+                  class="flex flex-col items-center"
+                >
+                  <UIcon
+                    name="i-heroicons-photo"
+                    class="w-10 h-10 text-neutral-400"
+                  />
+                  <span class="mt-2 text-sm text-neutral-500 dark:text-neutral-400">
+                    <span class="font-medium text-primary-600 dark:text-primary-400">Click to add cover photo</span>
+                  </span>
+                  <span class="mt-1 text-xs text-neutral-400">
+                    Crop to 16:9 aspect ratio
+                  </span>
+                </div>
+              </button>
             </div>
-            <input
-              type="file"
-              class="hidden"
-              accept="image/*"
-              :disabled="uploading"
-              @change="handleFileSelect"
+            <UAlert
+              v-if="uploadError"
+              color="error"
+              icon="i-heroicons-exclamation-circle"
+              :title="uploadError"
+              class="mt-2"
+            />
+          </UFormField>
+
+          <!-- Visibility -->
+          <div class="flex items-center justify-between p-4 bg-neutral-50 dark:bg-neutral-700 rounded-lg">
+            <div>
+              <p class="font-medium text-neutral-700 dark:text-neutral-100">
+                Recipe Visibility
+              </p>
+              <p class="text-sm text-neutral-500 dark:text-neutral-400">
+                {{ form.isPublished ? 'Anyone can see this recipe' : 'Only you can see this recipe' }}
+              </p>
+            </div>
+            <USwitch v-model="form.isPublished" />
+          </div>
+        </div>
+      </FormSection>
+
+      <!-- Ingredients Section -->
+      <FormSection
+        title="Ingredients"
+        icon="i-heroicons-list-bullet"
+      >
+        <div class="space-y-2">
+          <draggable
+            v-model="ingredients"
+            item-key="id"
+            handle=".drag-handle"
+            :animation="200"
+            ghost-class="sortable-ghost"
+            drag-class="sortable-drag"
+            chosen-class="sortable-chosen"
+          >
+            <template #item="{ element, index }">
+              <IngredientRow
+                :ingredient="element"
+                :can-delete="ingredients.length > 1"
+                @update="updateIngredient(index, $event)"
+                @delete="removeIngredient(index)"
+              />
+            </template>
+          </draggable>
+
+          <UButton
+            type="button"
+            variant="soft"
+            color="primary"
+            icon="i-heroicons-plus"
+            class="mt-4"
+            @click="addIngredient"
+          >
+            Add Ingredient
+          </UButton>
+        </div>
+      </FormSection>
+
+      <!-- Instructions Section -->
+      <FormSection
+        title="Instructions"
+        icon="i-heroicons-queue-list"
+      >
+        <div class="space-y-2">
+          <draggable
+            v-model="instructions"
+            item-key="id"
+            handle=".drag-handle"
+            :animation="200"
+            ghost-class="sortable-ghost"
+            drag-class="sortable-drag"
+            chosen-class="sortable-chosen"
+          >
+            <template #item="{ element, index }">
+              <InstructionStep
+                :instruction="element"
+                :step-number="index + 1"
+                :can-delete="instructions.length > 1"
+                @update="updateInstruction(index, $event)"
+                @delete="removeInstruction(index)"
+              />
+            </template>
+          </draggable>
+
+          <UButton
+            type="button"
+            variant="soft"
+            color="primary"
+            icon="i-heroicons-plus"
+            class="mt-4"
+            @click="addInstruction"
+          >
+            Add Step
+          </UButton>
+        </div>
+      </FormSection>
+
+      <!-- Source Attribution Section -->
+      <FormSection
+        title="Source Attribution"
+        icon="i-heroicons-link"
+        collapsible
+        :initially-collapsed="!initialData?.sourceUrl"
+      >
+        <div class="space-y-4">
+          <UFormField
+            label="Source URL"
+            name="sourceUrl"
+          >
+            <UInput
+              v-model="form.sourceUrl"
+              type="url"
+              placeholder="https://..."
+            />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-4">
+            <UFormField
+              label="Author"
+              name="sourceAuthor"
             >
-          </label>
+              <UInput
+                v-model="form.sourceAuthor"
+                placeholder="Recipe author"
+              />
+            </UFormField>
+            <UFormField
+              label="Site"
+              name="sourceSite"
+            >
+              <UInput
+                v-model="form.sourceSite"
+                placeholder="Website name"
+              />
+            </UFormField>
+          </div>
         </div>
-        <UAlert
-          v-if="uploadError"
-          color="error"
-          icon="i-heroicons-exclamation-circle"
-          :title="uploadError"
-          class="mt-2"
-        />
-      </UFormField>
+      </FormSection>
 
-      <!-- Visibility -->
-      <div class="flex items-center justify-between p-4 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
-        <div>
-          <p class="font-medium text-neutral-700 dark:text-neutral-100">
-            Recipe Visibility
-          </p>
-          <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            {{ form.isPublished ? 'Anyone can see this recipe' : 'Only you can see this recipe' }}
-          </p>
-        </div>
-        <UToggle v-model="form.isPublished" />
-      </div>
-    </div>
-
-    <!-- Ingredients -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-          Ingredients
-        </h2>
-        <UButton
-          type="button"
-          size="sm"
-          variant="outline"
-          icon="i-heroicons-plus"
-          @click="addIngredient"
-        >
-          Add
-        </UButton>
-      </div>
-
-      <div
-        v-for="(ingredient, index) in ingredients"
-        :key="index"
-        class="flex gap-2 items-start"
-      >
-        <UInput
-          v-model="ingredient.amount"
-          placeholder="1"
-          class="w-20"
-        />
-        <USelect
-          v-model="ingredient.unit"
-          :options="unitOptions"
-          value-key="value"
-          class="w-28"
-        />
-        <UInput
-          v-model="ingredient.item"
-          placeholder="Ingredient name"
-          class="flex-1"
-        />
-        <UInput
-          v-model="ingredient.notes"
-          placeholder="notes"
-          class="w-32 hidden sm:block"
-        />
-        <UButton
-          type="button"
-          color="error"
-          variant="ghost"
-          icon="i-heroicons-x-mark"
-          :disabled="ingredients.length === 1"
-          @click="removeIngredient(index)"
-        />
-      </div>
-    </div>
-
-    <!-- Instructions -->
-    <div class="space-y-4">
-      <div class="flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-          Instructions
-        </h2>
-        <UButton
-          type="button"
-          size="sm"
-          variant="outline"
-          icon="i-heroicons-plus"
-          @click="addInstruction"
-        >
-          Add Step
-        </UButton>
-      </div>
-
-      <div
-        v-for="(instruction, index) in instructions"
-        :key="index"
-        class="flex gap-3 items-start"
-      >
-        <span class="flex-shrink-0 w-8 h-8 rounded-full bg-neutral-200 dark:bg-neutral-700 text-neutral-600 dark:text-neutral-300 flex items-center justify-center font-semibold text-sm">
-          {{ index + 1 }}
-        </span>
-        <div class="flex-1 space-y-2">
-          <UTextarea
-            v-model="instruction.content"
-            placeholder="Describe this step..."
-            :rows="2"
-          />
-          <UFormField
-            label="Timer (minutes)"
-            class="w-32"
-          >
-            <UInput
-              v-model.number="instruction.timerMinutes"
-              type="number"
-              min="0"
-              placeholder="0"
-            />
-          </UFormField>
-        </div>
-        <UButton
-          type="button"
-          color="error"
-          variant="ghost"
-          icon="i-heroicons-x-mark"
-          :disabled="instructions.length === 1"
-          @click="removeInstruction(index)"
-        />
-      </div>
-    </div>
-
-    <!-- Source (optional) -->
-    <div class="space-y-4">
-      <UButton
-        type="button"
-        variant="ghost"
-        color="neutral"
-        class="w-full justify-between"
-        @click="showSource = !showSource"
-      >
-        Source Attribution (optional)
-        <template #trailing>
-          <UIcon
-            :name="showSource ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="w-4 h-4"
-          />
-        </template>
-      </UButton>
-
-      <div
-        v-if="showSource"
-        class="space-y-4 pl-4 border-l-2 border-neutral-200 dark:border-neutral-700"
-      >
-        <UFormField
-          label="Source URL"
-          name="sourceUrl"
-        >
-          <UInput
-            v-model="form.sourceUrl"
-            type="url"
-            placeholder="https://..."
-          />
-        </UFormField>
-        <div class="grid grid-cols-2 gap-4">
-          <UFormField
-            label="Author"
-            name="sourceAuthor"
-          >
-            <UInput
-              v-model="form.sourceAuthor"
-              placeholder="Recipe author"
-            />
-          </UFormField>
-          <UFormField
-            label="Site"
-            name="sourceSite"
-          >
-            <UInput
-              v-model="form.sourceSite"
-              placeholder="Website name"
-            />
-          </UFormField>
-        </div>
-      </div>
-    </div>
-
-    <!-- Submit -->
-    <div class="flex justify-end gap-4 pt-4 border-t border-neutral-200 dark:border-neutral-700">
-      <UButton
-        type="button"
-        color="neutral"
-        variant="outline"
-        @click="$router.back()"
-      >
-        Cancel
-      </UButton>
-      <UButton
-        type="submit"
-        color="primary"
+      <!-- Floating Action Bar -->
+      <FloatingActionBar
         :loading="loading"
-      >
-        {{ submitLabel }}
-      </UButton>
-    </div>
-  </form>
+        :autosave-status="autosaveStatus"
+        :submit-label="submitLabel"
+        :show-progress="true"
+        :progress="completionPercent"
+        @cancel="handleCancel"
+        @submit="handleSubmit"
+      />
+    </form>
+
+    <!-- Image Cropper Modal -->
+    <ImageCropper
+      v-model="showCropper"
+      :aspect-ratio="16 / 9"
+      title="Crop Cover Photo"
+      @crop="handleCroppedImage"
+    />
+  </div>
 </template>

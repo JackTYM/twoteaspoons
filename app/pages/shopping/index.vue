@@ -8,22 +8,27 @@ useSeoMeta({
   description: 'Your shopping lists',
 })
 
+const { getAuthHeaders } = useAuth()
+
 interface ShoppingList {
   id: number
   name: string
+  slug: string
   createdAt: string
   itemCount: number
   checkedCount: number
 }
 
-const { data, status, refresh } = await useFetch<{ lists: ShoppingList[] }>('/api/shopping-lists')
+const { data, status, refresh } = await useFetch<{ lists: ShoppingList[] }>('/api/shopping-lists', {
+  headers: getAuthHeaders(),
+})
 
 const lists = computed(() => data.value?.lists || [])
 
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-}
+// Calculate stats
+const totalLists = computed(() => lists.value.length)
+const completedLists = computed(() => lists.value.filter(l => l.itemCount > 0 && l.checkedCount === l.itemCount).length)
+const totalItems = computed(() => lists.value.reduce((sum, l) => sum + l.itemCount, 0))
 
 // Delete handling
 const listToDelete = ref<ShoppingList | null>(null)
@@ -40,13 +45,17 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/shopping-lists/${listToDelete.value.id}`, { method: 'DELETE' })
+    await $fetch(`/api/shopping-lists/${listToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
     listToDelete.value = null
     refresh()
   } catch (err) {
     console.error('Failed to delete list:', err)
   }
   deleting.value = false
+}
+
+function confirmDelete(list: ShoppingList): void {
+  listToDelete.value = list
 }
 </script>
 
@@ -55,20 +64,76 @@ async function handleDelete(): Promise<void> {
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-3xl font-bold text-neutral-700 dark:text-neutral-50">
+        <h1 class="text-3xl font-display text-neutral-700 dark:text-neutral-50">
           Shopping Lists
         </h1>
         <p class="text-neutral-500 dark:text-neutral-400 mt-1">
-          {{ lists.length }} list{{ lists.length === 1 ? '' : 's' }}
+          Your shopping lists from recipes
         </p>
       </div>
       <UButton
         to="/shopping/new"
         color="primary"
         icon="i-heroicons-plus"
+        class="press-effect"
       >
         New List
       </UButton>
+    </div>
+
+    <!-- Stats bar -->
+    <div
+      v-if="lists.length > 0"
+      class="flex items-center gap-6 mb-6 p-4 bg-neutral-100 dark:bg-neutral-800 rounded-xl"
+    >
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+          <UIcon
+            name="i-heroicons-clipboard-document-list"
+            class="w-5 h-5 text-primary-600 dark:text-primary-400"
+          />
+        </div>
+        <div>
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ totalLists }}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ totalLists === 1 ? 'List' : 'Lists' }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-sage-100 dark:bg-sage-900/30 flex items-center justify-center">
+          <UIcon
+            name="i-heroicons-check-circle"
+            class="w-5 h-5 text-sage-600 dark:text-sage-400"
+          />
+        </div>
+        <div>
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ completedLists }}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            Completed
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-butter-100 dark:bg-butter-900/30 flex items-center justify-center">
+          <UIcon
+            name="i-heroicons-shopping-bag"
+            class="w-5 h-5 text-butter-600 dark:text-butter-400"
+          />
+        </div>
+        <div>
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ totalItems }}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            Total Items
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -76,95 +141,62 @@ async function handleDelete(): Promise<void> {
       v-if="status === 'pending'"
       class="space-y-4"
     >
-      <USkeleton
+      <div
         v-for="i in 3"
         :key="i"
-        class="h-20 rounded-lg"
+        class="h-24 rounded-xl animate-shimmer"
       />
     </div>
 
     <!-- Empty State -->
-    <div
+    <EmptyState
       v-else-if="lists.length === 0"
-      class="text-center py-16"
-    >
-      <div class="p-4 rounded-full bg-neutral-100 dark:bg-neutral-800 inline-block mb-4">
-        <UIcon
-          name="i-heroicons-shopping-cart"
-          class="w-12 h-12 text-neutral-400"
-        />
-      </div>
-      <h2 class="text-xl font-semibold text-neutral-700 dark:text-neutral-100 mb-2">
-        No shopping lists yet
-      </h2>
-      <p class="text-neutral-500 dark:text-neutral-400 mb-6">
-        Create a list from your recipes to get started.
-      </p>
-      <UButton
-        to="/shopping/new"
-        color="primary"
-        icon="i-heroicons-plus"
-      >
-        Create Your First List
-      </UButton>
-    </div>
+      type="shopping"
+      title="No shopping lists yet"
+      description="Create a list from your recipes to make grocery shopping easier."
+      action-label="Create Your First List"
+      action-to="/shopping/new"
+    />
 
     <!-- Lists -->
     <div
       v-else
-      class="space-y-4"
+      class="space-y-3 animate-stagger"
     >
-      <NuxtLink
+      <ShoppingListCard
         v-for="list in lists"
         :key="list.id"
-        :to="`/shopping/${list.id}`"
-        class="block"
-      >
-        <UCard class="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 hover:shadow-md transition-shadow">
-          <div class="flex items-center justify-between">
-            <div>
-              <h3 class="font-semibold text-neutral-700 dark:text-neutral-100">
-                {{ list.name }}
-              </h3>
-              <div class="flex items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-                <span>{{ formatDate(list.createdAt) }}</span>
-                <span>{{ list.checkedCount }}/{{ list.itemCount }} items</span>
-              </div>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <!-- Progress -->
-              <div class="w-24 h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full overflow-hidden">
-                <div
-                  class="h-full bg-success-500 transition-all"
-                  :style="{ width: list.itemCount > 0 ? `${(list.checkedCount / list.itemCount) * 100}%` : '0%' }"
-                />
-              </div>
-
-              <UButton
-                color="error"
-                variant="ghost"
-                icon="i-heroicons-trash"
-                size="sm"
-                @click.prevent="listToDelete = list"
-              />
-            </div>
-          </div>
-        </UCard>
-      </NuxtLink>
+        :list="list"
+        @delete="confirmDelete(list)"
+      />
     </div>
 
     <!-- Delete Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Shopping List"
+      description="Confirm deletion of shopping list"
+    >
       <template #content>
         <UCard>
           <template #header>
-            <h3 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-              Delete Shopping List
-            </h3>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-error-100 dark:bg-error-900/30 flex items-center justify-center">
+                <UIcon
+                  name="i-heroicons-trash"
+                  class="w-5 h-5 text-error-600 dark:text-error-400"
+                />
+              </div>
+              <h3 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
+                Delete Shopping List
+              </h3>
+            </div>
           </template>
-          <p class="text-neutral-500 dark:text-neutral-400">
-            Are you sure you want to delete "{{ listToDelete?.name }}"?
+          <p class="text-neutral-600 dark:text-neutral-300">
+            Are you sure you want to delete "<strong>{{ listToDelete?.name }}</strong>"?
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+            This action cannot be undone.
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">
@@ -177,10 +209,12 @@ async function handleDelete(): Promise<void> {
               </UButton>
               <UButton
                 color="error"
+                variant="solid"
                 :loading="deleting"
+                class="press-effect"
                 @click="handleDelete"
               >
-                Delete
+                Delete List
               </UButton>
             </div>
           </template>

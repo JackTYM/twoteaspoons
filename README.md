@@ -2,85 +2,52 @@
 
 A recipe sharing platform for home cooks to discover, save, organize, and share recipes.
 
-**Domain:** twotsps.com
+**Live at:** [twotsps.com](https://twotsps.com)
 
-## Vision
-
-TwoTeaspoons is built for home cooks who frequently try new recipes and want a personal, organized recipe database. Originally envisioned as a family recipe sharing platform, it prioritizes practical features that make cooking easier.
-
-## Key Features
+## Features
 
 ### Recipe Management
-- Create, edit, and share recipes with markdown support
+- Create, edit, and share recipes
 - Dynamic ingredient scaling (0.5x, 2x, 3x, custom servings)
-- Smart rounding with warnings when scaling affects consistency
 - Prep time + cook time tracking
-- Cover photos and step photos
-- Full nutrition facts (via USDA FoodData Central)
-- Dietary tags and allergen detection/warnings
+- Cover photos with drag-and-drop upload
 
 ### Recipe Import
-- **URL Import:** Paste any recipe URL, auto-extract content, fix parsing errors
-- **PDF Import:** Upload recipe book PDFs, extract individual recipes
-- Full attribution to original author and source with link back
+- Import from any recipe URL with automatic parsing
+- Supports JSON-LD, microdata, and HTML fallback parsing
+- Full attribution to original author and source
 
 ### Recipe Forking
-- Create variations of existing recipes
-- Linked "family tree" showing original and all forks
-- See how variations compare in ratings
+- Create your own variations of any recipe
+- Fork history shows original recipe lineage
 
 ### Organization
-- **Global Categories:** Required when publishing (Breakfast, Dinner, Desserts, etc.)
-- **Personal Tags:** Your own labels when saving recipes
-- **Collections/Cookbooks:** Named groups ("Summer BBQ", "Mom's Classics")
-  - Public or private
-  - Shareable via link
-  - Display on profile
-
-### Social Features
-- Follow other users to see their new recipes
-- Comments on recipes for sharing results, photos, questions
-- Dual rating system: taste + difficulty (community averaged)
-- User profiles with public recipes and collections
+- **Categories:** Browse by meal type (Breakfast, Dinner, Desserts, etc.)
+- **Collections:** Create themed groups (public or private)
+- **Saved Recipes:** Bookmark favorites for quick access
 
 ### Meal Planning
-- Weekly/monthly calendar view
-- Drag-drop recipes into breakfast/lunch/dinner slots
-- Auto-generate shopping lists from date range
+- Weekly calendar view
+- Add recipes to breakfast, lunch, dinner, or snack slots
+- Generate shopping lists from meal plans
 
 ### Shopping Lists
-- Smart ingredient consolidation (merge duplicates, convert units)
+- Smart ingredient consolidation (merge duplicates)
 - Group by store section (produce, dairy, meat, pantry)
 - Check off items while shopping
-- Manual item additions
-
-### Printing
-- **3x5 Recipe Cards:** Formatted for index cards, multi-card continuation
-- **Multiple Formats:** 3x5, 4x6, A6, half-letter, full page (with visual icons)
-- **Batch Printing:** Print from favorites, collections, or manual selection
-- Clean print stylesheets
 
 ### Cook Mode
 - Step-by-step fullscreen interface
-- Large readable text, one step at a time
-- Screen stays awake
+- Screen stays awake during cooking
 - Built-in timers with audio alerts
-- Voice control: "next step", "previous step", "start timer", "read step"
-- Quick-access ingredient panel (scaled to chosen servings)
+- Voice control support
 
-### "What Can I Make"
-- Upload photo of ingredients
-- AI identifies ingredients (Claude via AWS Bedrock)
-- Tiered recipe results:
-  - Perfect matches (have everything)
-  - Missing 1-2 items
-  - Missing 3+ items
-- Quick-add missing items to shopping list
+### Printing
+- Multiple formats: 3x5, 4x6, A6, half-letter, full page
+- Clean print-optimized layouts
 
 ### Data Export
-- Full JSON export (recipes, favorites, collections, history)
-- PDF cookbook export
-- Individual recipe export
+- Full JSON export of all recipes
 
 ## Tech Stack
 
@@ -91,19 +58,17 @@ TwoTeaspoons is built for home cooks who frequently try new recipes and want a p
 | Database | Neon Postgres |
 | ORM | Drizzle |
 | Auth | Neon Auth |
-| UI | Nuxt UI |
-| Styling | Tailwind CSS |
+| UI | Nuxt UI (Tailwind) |
 | Image Storage | Cloudflare R2 |
 | AI | Claude via AWS Bedrock |
-| Nutrition API | USDA FoodData Central |
-| Hosting | Self-hosted Docker + nginx |
+| Hosting | Docker + nginx |
 
 ## Development
 
 ### Prerequisites
 - Node.js 20+
-- Docker
-- Access to Neon, Cloudflare R2, AWS Bedrock
+- PostgreSQL database (or Neon account)
+- Cloudflare R2 bucket
 
 ### Setup
 
@@ -113,10 +78,9 @@ npm install
 
 # Setup environment variables
 cp .env.example .env
-# Edit .env with your credentials
 
-# Run database migrations
-npm run db:migrate
+# Push database schema
+npm run db:push
 
 # Start development server
 npm run dev
@@ -127,24 +91,21 @@ npm run dev
 ```bash
 npm run dev        # Development server
 npm run build      # Production build
-npm run preview    # Preview production build
 npm run test       # Run all tests
 npm run test:unit  # Unit tests (Vitest)
 npm run test:e2e   # E2E tests (Playwright)
 npm run lint       # ESLint
 npm run typecheck  # TypeScript check
+npm run db:studio  # Database GUI
 ```
 
 ### Docker
 
 ```bash
-# Build image
 docker build -t twoteaspoons .
-
-# Run container
-docker run -p 3000:3000 twoteaspoons
+docker run -p 3000:3000 --env-file .env twoteaspoons
 ```
 
 ## License
 
-Private project.
+MIT

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
-  recipeId: number
+  recipeUsername: string
+  recipeSlug: string
 }>()
 
 interface User {
@@ -30,11 +31,18 @@ interface CommentsResponse {
   }
 }
 
-const { data, status, refresh } = await useFetch<CommentsResponse>(`/api/recipes/${props.recipeId}/comments`)
+const { user, isAuthenticated, getAuthHeaders } = useAuth()
+
+const apiBasePath = computed(() => `/api/recipes/${props.recipeUsername}/${props.recipeSlug}`)
+
+const { data, status, refresh } = await useFetch<CommentsResponse>(
+  () => `${apiBasePath.value}/comments`,
+  {
+    headers: getAuthHeaders(),
+  }
+)
 const comments = computed(() => data.value?.comments || [])
 const stats = computed(() => data.value?.stats)
-
-const { user, isAuthenticated } = useAuth()
 
 // New comment form
 const showForm = ref(false)
@@ -50,13 +58,14 @@ async function submitComment(): Promise<void> {
 
   submitting.value = true
   try {
-    await $fetch(`/api/recipes/${props.recipeId}/comments`, {
+    await $fetch(`${apiBasePath.value}/comments`, {
       method: 'POST',
       body: {
         content: newComment.content.trim(),
         tasteRating: newComment.tasteRating || undefined,
         difficultyRating: newComment.difficultyRating || undefined,
       },
+      headers: getAuthHeaders(),
     })
     newComment.content = ''
     newComment.tasteRating = 0
@@ -78,8 +87,9 @@ async function deleteComment(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/recipes/${props.recipeId}/comments/${commentToDelete.value.id}`, {
+    await $fetch(`${apiBasePath.value}/comments/${commentToDelete.value.id}`, {
       method: 'DELETE',
+      headers: getAuthHeaders(),
     })
     commentToDelete.value = null
     refresh()
@@ -255,18 +265,14 @@ function renderStars(rating: number | null): string {
     </div>
 
     <!-- Empty State -->
-    <div
+    <EmptyState
       v-else-if="comments.length === 0"
-      class="text-center py-8 bg-neutral-100 dark:bg-neutral-800 rounded-lg"
-    >
-      <UIcon
-        name="i-heroicons-chat-bubble-left-right"
-        class="w-10 h-10 text-neutral-400 mx-auto mb-3"
-      />
-      <p class="text-neutral-500 dark:text-neutral-400">
-        No comments yet. Be the first to share your experience!
-      </p>
-    </div>
+      type="comments"
+      title="No comments yet"
+      description="Be the first to share your experience!"
+      :action-label="isAuthenticated ? 'Add Comment' : undefined"
+      @action="showForm = true"
+    />
 
     <!-- Comments List -->
     <div
@@ -334,7 +340,11 @@ function renderStars(rating: number | null): string {
     </div>
 
     <!-- Delete Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Comment"
+      description="Confirm deletion of comment"
+    >
       <template #content>
         <UCard>
           <template #header>
@@ -356,6 +366,7 @@ function renderStars(rating: number | null): string {
               </UButton>
               <UButton
                 color="error"
+                variant="solid"
                 :loading="deleting"
                 @click="deleteComment"
               >

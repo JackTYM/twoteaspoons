@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+
+# Build output
+.output
+.nuxt
+dist
+
+# Development files
+.git
+.gitignore
+*.md
+!README.md
+
+# IDE
+.vscode
+.idea
+
+# Testing
+tests
+coverage
+playwright-report
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+/tmp

@@ -11,6 +11,12 @@ const { user } = useAuth()
 
 const settingsItems = [
   {
+    title: 'Edit Profile',
+    description: 'Update your name, username, and profile photo',
+    icon: 'i-heroicons-user-circle',
+    to: '/settings/profile',
+  },
+  {
     title: 'Export Data',
     description: 'Download a copy of your recipes and data',
     icon: 'i-heroicons-arrow-down-tray',
@@ -29,24 +35,45 @@ const settingsItems = [
     </p>
 
     <!-- Profile Summary -->
-    <UCard class="mb-6">
-      <div class="flex items-center gap-4">
-        <div class="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center">
+    <NuxtLink
+      to="/settings/profile"
+      class="block mb-6"
+    >
+      <UCard class="hover:border-primary-500 transition-colors cursor-pointer">
+        <div class="flex items-center gap-4">
+          <div
+            v-if="user?.avatar"
+            class="w-16 h-16 rounded-full overflow-hidden ring-2 ring-neutral-100 dark:ring-neutral-700"
+          >
+            <img
+              :src="user.avatar"
+              :alt="user.name || 'Profile'"
+              class="w-full h-full object-cover"
+            >
+          </div>
+          <div
+            v-else
+            class="w-16 h-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-2 ring-neutral-100 dark:ring-neutral-700"
+          >
+            <span class="text-2xl font-display text-white">
+              {{ user?.name?.charAt(0).toUpperCase() || 'U' }}
+            </span>
+          </div>
+          <div class="flex-1">
+            <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
+              {{ user?.name || 'User' }}
+            </h2>
+            <p class="text-sm text-neutral-500 dark:text-neutral-400">
+              {{ user?.username ? `@${user.username}` : user?.email }}
+            </p>
+          </div>
           <UIcon
-            name="i-heroicons-user"
-            class="w-8 h-8 text-neutral-400"
+            name="i-heroicons-pencil"
+            class="w-5 h-5 text-neutral-400"
           />
         </div>
-        <div>
-          <h2 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-            {{ user?.name || 'User' }}
-          </h2>
-          <p class="text-sm text-neutral-500 dark:text-neutral-400">
-            {{ user?.email }}
-          </p>
-        </div>
-      </div>
-    </UCard>
+      </UCard>
+    </NuxtLink>
 
     <!-- Settings List -->
     <div class="space-y-2">

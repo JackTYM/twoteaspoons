@@ -2,6 +2,7 @@ import { inArray } from 'drizzle-orm'
 import { db, shoppingLists, shoppingItems, recipes } from '../../db'
 import { consolidateIngredients } from '../../utils/ingredientConsolidator'
 import { requireAuth } from '../../utils/session'
+import { getUniqueShoppingListSlug } from '../../utils/slug'
 
 interface CreateListBody {
   name: string
@@ -55,10 +56,13 @@ export default defineEventHandler(async (event) => {
   // Consolidate ingredients
   const consolidated = consolidateIngredients(allIngredients)
 
-  // Create shopping list
+  // Create shopping list with slug
+  const slug = await getUniqueShoppingListSlug(user.id, body.name)
+
   const [newList] = await db.insert(shoppingLists).values({
     userId: user.id,
     name: body.name,
+    slug,
   }).returning()
 
   if (!newList) {

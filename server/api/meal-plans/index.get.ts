@@ -25,10 +25,18 @@ export default defineEventHandler(async (event) => {
         columns: {
           id: true,
           title: true,
+          slug: true,
           coverPhoto: true,
           prepTime: true,
           cookTime: true,
           servings: true,
+        },
+        with: {
+          author: {
+            columns: {
+              username: true,
+            },
+          },
         },
       },
     },

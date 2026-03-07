@@ -1,4 +1,9 @@
 import { defineConfig, devices } from '@playwright/test'
+import { fileURLToPath } from 'url'
+import path from 'path'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const authFile = path.join(__dirname, 'tests/e2e/.auth/user.json')
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -15,20 +20,37 @@ export default defineConfig({
   },
 
   projects: [
+    // Authenticated tests (use pre-saved auth state from .auth/user.json)
+    // To refresh auth state, use Chrome MCP to login and run:
+    //   document.cookie to get tts_auth cookie, then update .auth/user.json
+    {
+      name: 'chromium-auth',
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: authFile,
+      },
+      testMatch: /.*\.auth\.spec\.ts/,
+    },
+    {
+      name: 'firefox-auth',
+      use: {
+        ...devices['Desktop Firefox'],
+        storageState: authFile,
+      },
+      testMatch: /.*\.auth\.spec\.ts/,
+    },
+
+    // Unauthenticated tests (public pages, auth flow)
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: [/.*\.setup\.ts/, /.*\.auth\.spec\.ts/],
     },
     {
       name: 'firefox',
       use: { ...devices['Desktop Firefox'] },
+      testIgnore: [/.*\.setup\.ts/, /.*\.auth\.spec\.ts/],
     },
-    // Mobile (webkit) requires additional system dependencies
-    // Uncomment when ready: sudo npx playwright install-deps webkit
-    // {
-    //   name: 'mobile',
-    //   use: { ...devices['iPhone 13'] },
-    // },
   ],
 
   webServer: {

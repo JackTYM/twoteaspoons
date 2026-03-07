@@ -1,20 +1,24 @@
 <script setup lang="ts">
+defineProps<{
+  match: RecipeMatch
+}>()
+
+const { getRecipeUrl } = useRecipeUrl()
+
 interface RecipeMatch {
   recipe: {
     id: number
+    slug: string
     title: string
     coverPhoto: string | null
     prepTime: number | null
     cookTime: number | null
+    author?: { username: string | null } | null
   }
   matchPercentage: number
   missingIngredients: string[]
   matchedIngredients: string[]
 }
-
-defineProps<{
-  match: RecipeMatch
-}>()
 
 function formatTime(minutes: number | null): string {
   if (!minutes) return ''
@@ -33,7 +37,7 @@ function getMatchColor(percentage: number): string {
 
 <template>
   <NuxtLink
-    :to="`/recipes/${match.recipe.id}`"
+    :to="getRecipeUrl(match.recipe)"
     class="block bg-white dark:bg-neutral-800 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden hover:border-primary-500 hover:-translate-y-1 transition-all"
   >
     <!-- Image -->

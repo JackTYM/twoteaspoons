@@ -2,9 +2,10 @@
 // These mirror the Drizzle schema types but are defined here for client-side use
 
 export interface User {
-  id: number
+  id: string
   email: string
   name: string
+  username: string | null
   avatar: string | null
   bio: string | null
   createdAt: Date
@@ -13,8 +14,9 @@ export interface User {
 
 export interface Recipe {
   id: number
-  userId: number
+  userId: string
   title: string
+  slug: string
   description: string | null
   coverPhoto: string | null
   prepTime: number | null
@@ -42,6 +44,13 @@ export interface Ingredient {
   sortOrder: number | null
 }
 
+// Represents a link from an instruction to an ingredient with optional partial amount
+export interface IngredientLink {
+  id: number // Index into ingredients array
+  amount?: string | null // Partial amount used in this step (e.g., "1")
+  unit?: string | null // Unit for this partial (e.g., "tsp")
+}
+
 export interface Instruction {
   id: number
   recipeId: number
@@ -49,10 +58,21 @@ export interface Instruction {
   content: string
   timerMinutes: number | null
   photo: string | null
+  ingredientIds: number[] | null // Legacy: Indices of ingredients linked to this step
+  ingredientLinks?: IngredientLink[] | null // New: Links with optional partial amounts
+}
+
+export interface RecipeCategory {
+  id: number
+  name: string
+  slug: string
+  icon: string | null
+  type: string
 }
 
 export interface RecipeWithRelations extends Recipe {
   author: User
   ingredients: Ingredient[]
   instructions: Instruction[]
+  categories?: RecipeCategory[]
 }

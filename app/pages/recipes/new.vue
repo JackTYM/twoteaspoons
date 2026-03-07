@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
+
 definePageMeta({
   middleware: 'auth',
 })
@@ -8,8 +10,22 @@ useSeoMeta({
   description: 'Create a new recipe',
 })
 
+const { getAuthHeaders } = useAuth()
+const { getRecipeUrl } = useRecipeUrl()
 const loading = ref(false)
 const error = ref('')
+
+interface RecipeResponse {
+  id: number
+  slug: string
+  author?: { username: string | null } | null
+}
+
+interface IngredientLink {
+  id: number
+  amount?: string | null
+  unit?: string | null
+}
 
 interface FormData {
   title: string
@@ -18,11 +34,12 @@ interface FormData {
   prepTime: number | null
   cookTime: number | null
   servings: number
+  isPublished: boolean
   sourceUrl: string
   sourceAuthor: string
   sourceSite: string
   ingredients: Array<{ amount: string; unit: string; item: string; notes: string }>
-  instructions: Array<{ content: string; timerMinutes: number | null }>
+  instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
 }
 
 async function handleSubmit(data: FormData): Promise<void> {
@@ -30,11 +47,12 @@ async function handleSubmit(data: FormData): Promise<void> {
   error.value = ''
 
   try {
-    const result = await $fetch<{ recipe: { id: number } }>('/api/recipes', {
+    const result = await $fetch<{ recipe: RecipeResponse }>('/api/recipes', {
       method: 'POST',
       body: data,
+      headers: getAuthHeaders(),
     })
-    navigateTo(`/recipes/${result.recipe.id}`)
+    navigateTo(getRecipeUrl(result.recipe))
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to create recipe'
   }
@@ -44,10 +62,16 @@ async function handleSubmit(data: FormData): Promise<void> {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-    <h1 class="text-3xl font-bold text-neutral-700 dark:text-neutral-50 mb-8">
-      New Recipe
-    </h1>
+  <div class="px-4 sm:px-6 py-8">
+    <!-- Breadcrumbs -->
+    <div class="max-w-6xl mx-auto mb-6">
+      <Breadcrumbs
+        :items="[
+          { label: 'Browse', to: '/browse', icon: 'i-heroicons-magnifying-glass' },
+          { label: 'New Recipe' },
+        ]"
+      />
+    </div>
 
     <UAlert
       v-if="error"
@@ -55,12 +79,14 @@ async function handleSubmit(data: FormData): Promise<void> {
       variant="soft"
       :title="error"
       icon="i-heroicons-exclamation-circle"
-      class="mb-6"
+      class="max-w-6xl mx-auto mb-6"
     />
 
-    <RecipeForm
+    <RecipeEditor
       submit-label="Create Recipe"
       :loading="loading"
+      autosave-key="recipe-new"
+      mode="create"
       @submit="handleSubmit"
     />
   </div>

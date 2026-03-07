@@ -1,5 +1,6 @@
 import { db, collections } from '../../db'
 import { requireAuth } from '../../utils/session'
+import { getUniqueCollectionSlug } from '../../utils/slug'
 
 interface CreateCollectionBody {
   name: string
@@ -19,9 +20,12 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  const slug = await getUniqueCollectionSlug(user.id, body.name.trim())
+
   const [newCollection] = await db.insert(collections).values({
     userId: user.id,
     name: body.name.trim(),
+    slug,
     description: body.description?.trim() || null,
     isPublic: body.isPublic ?? false,
     coverPhoto: body.coverPhoto || null,

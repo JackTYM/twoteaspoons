@@ -1,12 +1,11 @@
-export default defineNuxtRouteMiddleware(async () => {
-  const { isAuthenticated, isLoading, fetchSession } = useAuth()
+export default defineNuxtRouteMiddleware(() => {
+  const { isAuthenticated, isAnonymous, initAuth } = useAuth()
 
-  // Wait for session to load if still loading
-  if (isLoading.value) {
-    await fetchSession()
-  }
+  // Ensure auth is initialized (reads from cookie)
+  initAuth()
 
-  if (!isAuthenticated.value) {
+  // Redirect if not authenticated or is anonymous
+  if (!isAuthenticated.value || isAnonymous.value) {
     return navigateTo('/auth/signin')
   }
 })

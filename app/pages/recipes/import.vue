@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
+
 definePageMeta({
   middleware: 'auth',
 })
@@ -8,9 +10,15 @@ useSeoMeta({
   description: 'Import a recipe from any URL',
 })
 
+const { getAuthHeaders } = useAuth()
+const { getRecipeUrl } = useRecipeUrl()
+
+// State machine: 'input' → 'importing' → 'success' → 'editing'
+type ImportState = 'input' | 'importing' | 'success' | 'editing'
+const state = ref<ImportState>('input')
+
 // Import state
 const url = ref('')
-const importing = ref(false)
 const importError = ref('')
 
 // Imported data for editing
@@ -35,7 +43,7 @@ const saveError = ref('')
 async function handleImport(): Promise<void> {
   if (!url.value.trim()) return
 
-  importing.value = true
+  state.value = 'importing'
   importError.value = ''
   importedData.value = null
 
@@ -43,8 +51,10 @@ async function handleImport(): Promise<void> {
     const result = await $fetch<{ recipe: typeof importedData.value }>('/api/recipes/import', {
       method: 'POST',
       body: { url: url.value },
+      headers: getAuthHeaders(),
     })
     importedData.value = result.recipe
+    state.value = 'success'
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'data' in err) {
       const fetchErr = err as { data?: { message?: string } }
@@ -52,9 +62,18 @@ async function handleImport(): Promise<void> {
     } else {
       importError.value = 'Failed to import recipe'
     }
+    state.value = 'input'
   }
+}
 
-  importing.value = false
+function continueToEditor(): void {
+  state.value = 'editing'
+}
+
+interface IngredientLink {
+  id: number
+  amount?: string | null
+  unit?: string | null
 }
 
 interface RecipeFormData {
@@ -64,11 +83,12 @@ interface RecipeFormData {
   prepTime: number | null
   cookTime: number | null
   servings: number
+  isPublished: boolean
   sourceUrl: string
   sourceAuthor: string
   sourceSite: string
   ingredients: Array<{ amount: string; unit: string; item: string; notes: string }>
-  instructions: Array<{ content: string; timerMinutes: number | null }>
+  instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
 }
 
 async function handleSave(formData: RecipeFormData): Promise<void> {
@@ -76,11 +96,12 @@ async function handleSave(formData: RecipeFormData): Promise<void> {
   saveError.value = ''
 
   try {
-    const result = await $fetch<{ recipe: { id: number } }>('/api/recipes', {
+    const result = await $fetch<{ recipe: { id: number; slug: string; author?: { username: string | null } | null } }>('/api/recipes', {
       method: 'POST',
       body: formData,
+      headers: getAuthHeaders(),
     })
-    navigateTo(`/recipes/${result.recipe.id}`)
+    navigateTo(getRecipeUrl(result.recipe))
   } catch (err) {
     saveError.value = err instanceof Error ? err.message : 'Failed to save recipe'
   }
@@ -92,89 +113,109 @@ function resetImport(): void {
   importedData.value = null
   url.value = ''
   importError.value = ''
+  state.value = 'input'
 }
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-    <h1 class="text-3xl font-bold text-neutral-700 dark:text-neutral-50 mb-2">
-      Import Recipe
-    </h1>
-    <p class="text-neutral-500 dark:text-neutral-400 mb-8">
-      Paste a URL from any recipe website to import it. No more life stories - just the recipe.
-    </p>
-
-    <!-- URL Input (shown when no imported data) -->
+  <div class="px-4 sm:px-6 py-8">
+    <!-- Non-editing states: centered narrow layout -->
     <div
-      v-if="!importedData"
-      class="space-y-4"
+      v-if="state !== 'editing'"
+      class="max-w-3xl mx-auto"
     >
-      <UCard class="bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700">
-        <form
-          class="space-y-4"
-          @submit.prevent="handleImport"
-        >
-          <UFormField
-            label="Recipe URL"
-            name="url"
-          >
-            <UInput
-              v-model="url"
-              type="url"
-              placeholder="https://example.com/recipe/..."
-              icon="i-heroicons-link"
-              size="lg"
-              required
-              autofocus
-            />
-          </UFormField>
+      <!-- Breadcrumbs -->
+      <Breadcrumbs
+        :items="[
+          { label: 'Browse', to: '/browse', icon: 'i-heroicons-magnifying-glass' },
+          { label: 'Import' },
+        ]"
+        class="mb-6"
+      />
 
-          <UAlert
-            v-if="importError"
-            color="error"
-            variant="soft"
-            :title="importError"
-            icon="i-heroicons-exclamation-circle"
-          />
-
-          <UButton
-            type="submit"
-            color="primary"
-            size="lg"
-            block
-            :loading="importing"
-            icon="i-heroicons-arrow-down-tray"
-          >
-            Import Recipe
-          </UButton>
-        </form>
-      </UCard>
-
-      <div class="text-center text-sm text-neutral-500 dark:text-neutral-400">
-        <p>Works with most recipe websites including:</p>
-        <p class="mt-1">AllRecipes, Food Network, NYT Cooking, Serious Eats, and more</p>
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-display text-neutral-700 dark:text-neutral-50 mb-2">
+          Import Recipe
+        </h1>
+        <p class="text-neutral-500 dark:text-neutral-400">
+          Paste a URL from any recipe website - we'll skip the life story
+        </p>
       </div>
+
+      <!-- State: Input -->
+      <Transition
+        name="slide-fade"
+        mode="out-in"
+      >
+        <div
+          v-if="state === 'input'"
+          key="input"
+        >
+          <ImportUrlInputCard
+            v-model="url"
+            :importing="false"
+            :error="importError"
+            @import="handleImport"
+          />
+          <ImportSupportedSites />
+        </div>
+
+        <!-- State: Importing -->
+        <div
+          v-else-if="state === 'importing'"
+          key="importing"
+        >
+          <ImportProgress />
+        </div>
+
+        <!-- State: Success -->
+        <div
+          v-else-if="state === 'success' && importedData"
+          key="success"
+        >
+          <ImportSuccess
+            :recipe="importedData"
+            @continue="continueToEditor"
+          />
+        </div>
+      </Transition>
     </div>
 
-    <!-- Imported Recipe Form (shown after successful import) -->
-    <div v-else>
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-          <UIcon
-            name="i-heroicons-check-circle"
-            class="w-5 h-5 text-success-500"
+    <!-- Editing state: full-width editor layout -->
+    <div v-else-if="state === 'editing' && importedData">
+      <!-- Breadcrumbs -->
+      <div class="max-w-6xl mx-auto mb-6">
+        <div class="flex items-center justify-between">
+          <Breadcrumbs
+            :items="[
+              { label: 'Browse', to: '/browse', icon: 'i-heroicons-magnifying-glass' },
+              { label: 'Import' },
+            ]"
           />
-          <span>Imported from {{ importedData.sourceSite || 'external source' }}</span>
+          <div class="flex items-center gap-2">
+            <!-- Source badge -->
+            <div
+              v-if="importedData?.sourceSite"
+              class="inline-flex items-center gap-2 px-3 py-1.5 bg-sage-50 dark:bg-sage-900/20 text-sage-700 dark:text-sage-300 rounded-full text-sm"
+            >
+              <UIcon
+                name="i-heroicons-check-circle"
+                class="w-4 h-4"
+              />
+              Imported from {{ importedData.sourceSite }}
+            </div>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              icon="i-heroicons-arrow-path"
+              @click="resetImport"
+            >
+              Import Different
+            </UButton>
+          </div>
         </div>
-        <UButton
-          variant="ghost"
-          color="neutral"
-          size="sm"
-          icon="i-heroicons-arrow-path"
-          @click="resetImport"
-        >
-          Import Different URL
-        </UButton>
       </div>
 
       <UAlert
@@ -183,15 +224,34 @@ function resetImport(): void {
         variant="soft"
         :title="saveError"
         icon="i-heroicons-exclamation-circle"
-        class="mb-6"
+        class="max-w-6xl mx-auto mb-6"
       />
 
-      <RecipeForm
+      <RecipeEditor
         :initial-data="importedData"
         submit-label="Save to My Recipes"
         :loading="saving"
+        autosave-key="recipe-import"
+        mode="create"
         @submit="handleSave"
       />
     </div>
   </div>
 </template>
+
+<style scoped>
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+</style>

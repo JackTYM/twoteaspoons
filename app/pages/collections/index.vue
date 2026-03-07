@@ -8,17 +8,23 @@ useSeoMeta({
   description: 'Your recipe collections',
 })
 
+const { getAuthHeaders } = useAuth()
+
 interface Collection {
   id: number
   name: string
+  slug: string
   description: string | null
   isPublic: boolean
   coverPhoto: string | null
   createdAt: string
   recipeCount: number
+  previewPhotos?: string[]
 }
 
-const { data, status, refresh } = await useFetch<{ collections: Collection[] }>('/api/collections')
+const { data, status, refresh } = await useFetch<{ collections: Collection[] }>('/api/collections', {
+  headers: getAuthHeaders(),
+})
 
 const collections = computed(() => data.value?.collections || [])
 
@@ -37,13 +43,17 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/collections/${collectionToDelete.value.id}`, { method: 'DELETE' })
+    await $fetch(`/api/collections/by-id/${collectionToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
     collectionToDelete.value = null
     refresh()
   } catch (err) {
     console.error('Failed to delete collection:', err)
   }
   deleting.value = false
+}
+
+function confirmDelete(collection: Collection): void {
+  collectionToDelete.value = collection
 }
 </script>
 
@@ -52,20 +62,60 @@ async function handleDelete(): Promise<void> {
     <!-- Header -->
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-3xl font-bold text-neutral-700 dark:text-neutral-50">
+        <h1 class="text-3xl font-display text-neutral-700 dark:text-neutral-50">
           My Collections
         </h1>
         <p class="text-neutral-500 dark:text-neutral-400 mt-1">
-          {{ collections.length }} collection{{ collections.length === 1 ? '' : 's' }}
+          Organize your recipes into themed groups
         </p>
       </div>
       <UButton
         to="/collections/new"
         color="primary"
         icon="i-heroicons-plus"
+        class="press-effect"
       >
         New Collection
       </UButton>
+    </div>
+
+    <!-- Stats bar -->
+    <div
+      v-if="collections.length > 0"
+      class="flex items-center gap-6 mb-6 p-4 bg-neutral-100 dark:bg-neutral-800 rounded-xl"
+    >
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center">
+          <UIcon
+            name="i-heroicons-folder"
+            class="w-5 h-5 text-primary-600 dark:text-primary-400"
+          />
+        </div>
+        <div>
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ collections.length }}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            {{ collections.length === 1 ? 'Collection' : 'Collections' }}
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <div class="w-10 h-10 rounded-lg bg-sage-100 dark:bg-sage-900/30 flex items-center justify-center">
+          <UIcon
+            name="i-heroicons-book-open"
+            class="w-5 h-5 text-sage-600 dark:text-sage-400"
+          />
+        </div>
+        <div>
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ collections.reduce((sum, c) => sum + c.recipeCount, 0) }}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-400">
+            Total Recipes
+          </p>
+        </div>
+      </div>
     </div>
 
     <!-- Loading -->
@@ -73,121 +123,62 @@ async function handleDelete(): Promise<void> {
       v-if="status === 'pending'"
       class="grid grid-cols-1 sm:grid-cols-2 gap-4"
     >
-      <USkeleton
+      <div
         v-for="i in 4"
         :key="i"
-        class="h-40 rounded-lg"
+        class="h-52 rounded-xl animate-shimmer"
       />
     </div>
 
     <!-- Empty State -->
-    <div
+    <EmptyState
       v-else-if="collections.length === 0"
-      class="text-center py-16"
-    >
-      <div class="p-4 rounded-full bg-neutral-100 dark:bg-neutral-800 inline-block mb-4">
-        <UIcon
-          name="i-heroicons-folder"
-          class="w-12 h-12 text-neutral-400"
-        />
-      </div>
-      <h2 class="text-xl font-semibold text-neutral-700 dark:text-neutral-100 mb-2">
-        No collections yet
-      </h2>
-      <p class="text-neutral-500 dark:text-neutral-400 mb-6">
-        Create a collection to organize your favorite recipes.
-      </p>
-      <UButton
-        to="/collections/new"
-        color="primary"
-        icon="i-heroicons-plus"
-      >
-        Create Your First Collection
-      </UButton>
-    </div>
+      type="collections"
+      title="No collections yet"
+      description="Create a collection to organize your favorite recipes by theme, occasion, or cuisine."
+      action-label="Create Your First Collection"
+      action-to="/collections/new"
+    />
 
     <!-- Collections Grid -->
     <div
       v-else
-      class="grid grid-cols-1 sm:grid-cols-2 gap-4"
+      class="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-stagger"
     >
-      <NuxtLink
+      <CollectionsCollectionCard
         v-for="collection in collections"
         :key="collection.id"
-        :to="`/collections/${collection.id}`"
-        class="block group"
-      >
-        <UCard class="h-full bg-neutral-50 dark:bg-neutral-800 hover:shadow-md transition-shadow overflow-hidden">
-          <!-- Cover Image -->
-          <template #header>
-            <div class="h-24 -m-4 mb-0 relative overflow-hidden">
-              <img
-                v-if="collection.coverPhoto"
-                :src="collection.coverPhoto"
-                :alt="collection.name"
-                class="w-full h-full object-cover"
-              >
-              <div
-                v-else
-                class="w-full h-full bg-gradient-to-br from-primary-100 to-primary-200 dark:from-primary-900 dark:to-primary-800 flex items-center justify-center"
-              >
-                <UIcon
-                  name="i-heroicons-folder"
-                  class="w-10 h-10 text-primary-400"
-                />
-              </div>
-              <!-- Visibility Badge -->
-              <div class="absolute top-2 right-2">
-                <UBadge
-                  :color="collection.isPublic ? 'success' : 'neutral'"
-                  variant="solid"
-                  size="xs"
-                >
-                  {{ collection.isPublic ? 'Public' : 'Private' }}
-                </UBadge>
-              </div>
-            </div>
-          </template>
-
-          <div class="flex items-start justify-between">
-            <div class="flex-1 min-w-0">
-              <h3 class="font-semibold text-neutral-700 dark:text-neutral-100 truncate">
-                {{ collection.name }}
-              </h3>
-              <p
-                v-if="collection.description"
-                class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 mt-1"
-              >
-                {{ collection.description }}
-              </p>
-              <p class="text-sm text-neutral-400 dark:text-neutral-500 mt-2">
-                {{ collection.recipeCount }} recipe{{ collection.recipeCount === 1 ? '' : 's' }}
-              </p>
-            </div>
-            <UButton
-              color="error"
-              variant="ghost"
-              icon="i-heroicons-trash"
-              size="sm"
-              class="opacity-0 group-hover:opacity-100 transition-opacity"
-              @click.prevent="collectionToDelete = collection"
-            />
-          </div>
-        </UCard>
-      </NuxtLink>
+        :collection="collection"
+        @delete="confirmDelete(collection)"
+      />
     </div>
 
     <!-- Delete Modal -->
-    <UModal v-model:open="deleteModalOpen">
+    <UModal
+      v-model:open="deleteModalOpen"
+      title="Delete Collection"
+      description="Confirm deletion of collection"
+    >
       <template #content>
         <UCard>
           <template #header>
-            <h3 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
-              Delete Collection
-            </h3>
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-full bg-error-100 dark:bg-error-900/30 flex items-center justify-center">
+                <UIcon
+                  name="i-heroicons-trash"
+                  class="w-5 h-5 text-error-600 dark:text-error-400"
+                />
+              </div>
+              <h3 class="text-lg font-semibold text-neutral-700 dark:text-neutral-100">
+                Delete Collection
+              </h3>
+            </div>
           </template>
-          <p class="text-neutral-500 dark:text-neutral-400">
-            Are you sure you want to delete "{{ collectionToDelete?.name }}"? This won't delete the recipes in it.
+          <p class="text-neutral-600 dark:text-neutral-300">
+            Are you sure you want to delete "<strong>{{ collectionToDelete?.name }}</strong>"?
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400 mt-2">
+            This won't delete the recipes themselves, just the collection.
           </p>
           <template #footer>
             <div class="flex justify-end gap-2">
@@ -200,10 +191,12 @@ async function handleDelete(): Promise<void> {
               </UButton>
               <UButton
                 color="error"
+                variant="solid"
                 :loading="deleting"
+                class="press-effect"
                 @click="handleDelete"
               >
-                Delete
+                Delete Collection
               </UButton>
             </div>
           </template>

@@ -1,5 +1,12 @@
 <script setup lang="ts">
-const { user, isAuthenticated, isLoading, signOut, fetchSession } = useAuth()
+const { user, isAuthenticated, isAnonymous, signOut, refreshUserProfile } = useAuth()
+
+// Refresh user profile to get username if missing
+onMounted(async () => {
+  if (isAuthenticated.value && !isAnonymous.value && user.value && !user.value.username) {
+    await refreshUserProfile()
+  }
+})
 const colorMode = useColorMode()
 
 const isDark = computed({
@@ -13,14 +20,9 @@ const icon = computed(() =>
   colorMode.value === 'dark' ? 'i-heroicons-moon-solid' : 'i-heroicons-sun-solid'
 )
 
-// Fetch session on mount
-onMounted(() => {
-  fetchSession()
-})
-
 async function handleSignOut(): Promise<void> {
   await signOut()
-  navigateTo('/')
+  window.location.href = '/'
 }
 
 const dropdownItems = computed(() => [
@@ -29,15 +31,22 @@ const dropdownItems = computed(() => [
     slot: 'account',
     disabled: true,
   }],
-  [{
-    label: 'Settings',
-    icon: 'i-heroicons-cog-6-tooth',
-    to: '/settings',
-  }],
+  [
+    ...(user.value?.username ? [{
+      label: 'View Profile',
+      icon: 'i-heroicons-user',
+      to: `/users/${user.value.username}`,
+    }] : []),
+    {
+      label: 'Settings',
+      icon: 'i-heroicons-cog-6-tooth',
+      to: '/settings',
+    },
+  ],
   [{
     label: 'Sign out',
     icon: 'i-heroicons-arrow-right-on-rectangle',
-    click: handleSignOut,
+    onSelect: handleSignOut,
   }],
 ])
 
@@ -52,124 +61,124 @@ const addRecipeItems = [
     icon: 'i-heroicons-arrow-down-tray',
     to: '/recipes/import',
   }],
-  [{
-    label: 'What Can I Make?',
-    icon: 'i-heroicons-sparkles',
-    to: '/what-can-i-make',
-  }],
 ]
 </script>
 
 <template>
   <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col">
+    <!-- Skip Link for Accessibility -->
+    <a
+      href="#main-content"
+      class="skip-link"
+    >
+      Skip to main content
+    </a>
+
     <!-- Header -->
     <header class="sticky top-0 z-40 bg-neutral-50/80 dark:bg-neutral-950/80 backdrop-blur-sm border-b border-neutral-200 dark:border-neutral-800">
       <div class="max-w-6xl mx-auto px-4 sm:px-6">
         <div class="flex items-center justify-between h-16">
-          <!-- Logo -->
+          <!-- Logo (links to home) -->
           <NuxtLink
             to="/"
-            class="flex items-center gap-2"
+            class="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <img
               src="/images/logo.svg"
               alt="TwoTeaspoons"
               class="w-8 h-8 dark:brightness-150"
             >
-            <span class="font-display font-semibold text-lg text-neutral-700 dark:text-neutral-100 hidden sm:block">
+            <span class="font-display font-semibold text-lg text-neutral-700 dark:text-neutral-100">
               TwoTeaspoons
             </span>
           </NuxtLink>
 
-          <!-- Navigation -->
+          <!-- Right side: Add, Profile, Theme -->
           <nav class="flex items-center gap-2">
-            <template v-if="!isLoading">
-              <template v-if="isAuthenticated">
+            <!-- Authenticated non-anonymous user -->
+            <template v-if="isAuthenticated && !isAnonymous">
+              <!-- Add Button -->
+              <UDropdownMenu :items="addRecipeItems">
                 <UButton
-                  to="/recipes"
-                  variant="ghost"
-                  color="neutral"
-                >
-                  My Recipes
-                </UButton>
-                <UButton
-                  to="/collections"
-                  variant="ghost"
-                  color="neutral"
-                  icon="i-heroicons-folder"
-                >
-                  <span class="hidden sm:inline">Collections</span>
-                </UButton>
-                <UButton
-                  to="/shopping"
-                  variant="ghost"
-                  color="neutral"
-                  icon="i-heroicons-shopping-cart"
-                >
-                  <span class="hidden sm:inline">Shopping</span>
-                </UButton>
-                <UButton
-                  to="/meal-plan"
-                  variant="ghost"
-                  color="neutral"
-                  icon="i-heroicons-calendar"
-                >
-                  <span class="hidden sm:inline">Meal Plan</span>
-                </UButton>
-                <UDropdown :items="addRecipeItems">
-                  <UButton
-                    color="primary"
-                    icon="i-heroicons-plus"
-                    trailing-icon="i-heroicons-chevron-down"
-                  >
-                    <span class="hidden sm:inline">Add</span>
-                  </UButton>
-                </UDropdown>
-                <UDropdown :items="dropdownItems">
-                  <UButton
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-heroicons-user-circle"
-                    class="rounded-full"
-                  />
-                </UDropdown>
-              </template>
-              <template v-else>
-                <UButton
-                  to="/auth/signin"
-                  variant="ghost"
-                  color="neutral"
-                >
-                  Sign in
-                </UButton>
-                <UButton
-                  to="/auth/signup"
                   color="primary"
+                  icon="i-heroicons-plus"
+                  trailing-icon="i-heroicons-chevron-down"
+                  class="press-effect"
+                  aria-label="Add new recipe"
                 >
-                  Get Started
+                  <span class="hidden sm:inline">New Recipe</span>
                 </UButton>
-              </template>
+              </UDropdownMenu>
+
+              <!-- Profile -->
+              <UDropdownMenu :items="dropdownItems">
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-heroicons-user-circle"
+                  class="rounded-full"
+                  aria-label="User menu"
+                />
+              </UDropdownMenu>
+            </template>
+
+            <!-- Anonymous or not authenticated: show sign in -->
+            <template v-else>
+              <UButton
+                to="/auth/signin"
+                variant="ghost"
+                color="neutral"
+              >
+                Sign in
+              </UButton>
+              <UButton
+                to="/auth/signup"
+                color="primary"
+              >
+                Get Started
+              </UButton>
             </template>
 
             <!-- Color mode toggle -->
-            <UButton
-              :icon="icon"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              class="rounded-full"
-              aria-label="Toggle color mode"
-              @click="isDark = !isDark"
-            />
+            <ClientOnly>
+              <UButton
+                :icon="icon"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                class="rounded-full"
+                aria-label="Toggle color mode"
+                @click="isDark = !isDark"
+              />
+              <template #fallback>
+                <UButton
+                  icon="i-heroicons-sun-solid"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="rounded-full"
+                  aria-label="Toggle color mode"
+                />
+              </template>
+            </ClientOnly>
           </nav>
         </div>
       </div>
     </header>
 
+    <!-- Desktop Navigation -->
+    <LayoutDesktopNav class="hidden lg:block" />
+
     <!-- Main Content -->
-    <main class="flex-1">
+    <main
+      id="main-content"
+      class="flex-1 pb-20 lg:pb-0"
+    >
       <slot />
     </main>
+
+    <!-- Mobile Bottom Navigation -->
+    <LayoutMobileBottomNav class="lg:hidden" />
 
     <!-- Footer -->
     <footer class="px-6 py-8 text-center text-neutral-500 dark:text-neutral-400 border-t border-neutral-200 dark:border-neutral-800">

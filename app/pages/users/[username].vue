@@ -1,0 +1,484 @@
+<script setup lang="ts">
+const route = useRoute()
+const username = route.params.username as string
+
+interface ProfileRecipe {
+  id: number
+  slug: string
+  title: string
+  description: string | null
+  coverPhoto: string | null
+  prepTime: number | null
+  cookTime: number | null
+  servings: number | null
+  saveCount: number | null
+  createdAt: string
+  isPublished?: boolean
+  author: { name: string; username: string | null }
+}
+
+interface ProfileCollection {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  coverPhoto: string | null
+  createdAt: string
+  recipeCount: number
+  previewPhotos: string[]
+  isPublic?: boolean
+}
+
+interface ProfileData {
+  user: {
+    id: string
+    name: string
+    username: string | null
+    avatar: string | null
+    bio: string | null
+    joinedAt: string
+  }
+  stats: {
+    recipeCount: number
+    collectionCount: number
+    totalSavesReceived: number
+  }
+  recipes: ProfileRecipe[]
+  collections: ProfileCollection[]
+}
+
+const { data, status, error } = await useFetch<ProfileData>(`/api/users/by-username/${username}/public`)
+
+// Check if viewing own profile
+const { user: currentUser, isAuthenticated, isAnonymous, getAuthHeaders } = useAuth()
+const isOwnProfile = computed(() =>
+  isAuthenticated.value && !isAnonymous.value && currentUser.value?.username === username
+)
+
+// Fetch all recipes (including drafts) if viewing own profile
+interface MyRecipe {
+  id: number
+  slug: string
+  title: string
+  description: string | null
+  coverPhoto: string | null
+  prepTime: number | null
+  cookTime: number | null
+  servings: number | null
+  saveCount: number | null
+  isPublished: boolean
+  createdAt: string
+  author: { id: string; name: string; username: string | null } | null
+}
+
+// Fetch own content (including drafts and private) when viewing own profile
+const hasFetchedOwnContent = ref(false)
+
+interface MyCollection {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  coverPhoto: string | null
+  isPublic: boolean
+  createdAt: string
+  recipeCount: number
+  previewPhotos: string[]
+}
+
+async function fetchOwnContent(): Promise<void> {
+  if (hasFetchedOwnContent.value || !data.value) return
+  hasFetchedOwnContent.value = true
+
+  try {
+    // Fetch all recipes (including drafts)
+    const recipesResult = await $fetch<{ recipes: MyRecipe[] }>('/api/recipes/mine', {
+      headers: getAuthHeaders(),
+    })
+    if (recipesResult?.recipes) {
+      data.value.recipes = recipesResult.recipes.map(r => ({
+        ...r,
+        author: r.author ? { name: r.author.name, username: r.author.username } : { name: '', username: null },
+      }))
+      data.value.stats.recipeCount = recipesResult.recipes.length
+    }
+
+    // Fetch all collections (including private)
+    const collectionsResult = await $fetch<{ collections: MyCollection[] }>('/api/collections', {
+      headers: getAuthHeaders(),
+    })
+    if (collectionsResult?.collections) {
+      data.value.collections = collectionsResult.collections.map(c => ({
+        ...c,
+        previewPhotos: c.previewPhotos || [],
+      }))
+      data.value.stats.collectionCount = collectionsResult.collections.length
+    }
+  } catch (err) {
+    console.error('Failed to fetch own content:', err)
+  }
+}
+
+// Watch for when profile data is loaded AND it's own profile
+watch(
+  [isOwnProfile, () => data.value],
+  ([isOwn, profileData]) => {
+    if (isOwn && profileData && !hasFetchedOwnContent.value) {
+      fetchOwnContent()
+    }
+  },
+  { immediate: true }
+)
+
+// Also try on mounted in case the watch doesn't trigger
+onMounted(() => {
+  if (isOwnProfile.value && data.value && !hasFetchedOwnContent.value) {
+    fetchOwnContent()
+  }
+})
+
+// SEO
+useSeoMeta({
+  title: () => data.value?.user.name ? `${data.value.user.name} (@${data.value.user.username})` : 'Profile',
+  description: () => data.value?.user.bio || `Check out ${data.value?.user.name}'s recipes on TwoTeaspoons`,
+})
+
+// Tabs
+const activeTab = ref<'recipes' | 'collections'>('recipes')
+
+// Format date
+function formatJoinDate(dateStr: string): string {
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+}
+
+// Actions
+const isRealUser = computed(() => isAuthenticated.value && !isAnonymous.value)
+
+async function handleSave(recipeId: number): Promise<void> {
+  if (!isRealUser.value) {
+    navigateTo('/auth/signin')
+    return
+  }
+
+  // For now, just save (we don't track isSaved on public profiles yet)
+  try {
+    await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    })
+  } catch (err) {
+    console.error('Failed to save recipe:', err)
+  }
+}
+
+function handleAddToCollection(_recipeId: number): void {
+  if (!isRealUser.value) {
+    navigateTo('/auth/signin')
+    return
+  }
+  // TODO: Open collection picker modal
+}
+</script>
+
+<template>
+  <div class="min-h-screen bg-neutral-50 dark:bg-neutral-950">
+    <!-- Error State -->
+    <div
+      v-if="error"
+      class="max-w-4xl mx-auto px-4 py-12"
+    >
+      <EmptyState
+        type="search"
+        title="User not found"
+        description="This user doesn't exist or may have been removed."
+        action-label="Go Home"
+        action-to="/"
+        action-icon="i-heroicons-home"
+      />
+    </div>
+
+    <!-- Loading State -->
+    <div
+      v-else-if="status === 'pending'"
+      class="max-w-4xl mx-auto px-4 py-8"
+    >
+      <div class="animate-pulse space-y-6">
+        <div class="flex items-center gap-6">
+          <div class="w-24 h-24 rounded-full bg-neutral-200 dark:bg-neutral-800" />
+          <div class="space-y-3">
+            <div class="h-8 w-48 bg-neutral-200 dark:bg-neutral-800 rounded" />
+            <div class="h-4 w-32 bg-neutral-200 dark:bg-neutral-800 rounded" />
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div class="h-20 bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
+          <div class="h-20 bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
+          <div class="h-20 bg-neutral-200 dark:bg-neutral-800 rounded-xl" />
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Content -->
+    <div
+      v-else-if="data"
+      class="max-w-4xl mx-auto px-4 py-8"
+    >
+      <!-- Profile Header -->
+      <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 mb-8">
+        <!-- Avatar -->
+        <div class="relative">
+          <div
+            v-if="data.user.avatar"
+            class="w-24 h-24 rounded-full overflow-hidden ring-4 ring-white dark:ring-neutral-800 shadow-lg"
+          >
+            <img
+              :src="data.user.avatar"
+              :alt="data.user.name"
+              class="w-full h-full object-cover"
+            >
+          </div>
+          <div
+            v-else
+            class="w-24 h-24 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center ring-4 ring-white dark:ring-neutral-800 shadow-lg"
+          >
+            <span class="text-3xl font-display text-white">
+              {{ data.user.name?.charAt(0).toUpperCase() }}
+            </span>
+          </div>
+        </div>
+
+        <!-- User Info -->
+        <div class="flex-1 text-center sm:text-left">
+          <h1 class="text-2xl font-display text-neutral-700 dark:text-neutral-50 mb-1">
+            {{ data.user.name }}
+          </h1>
+          <p class="text-neutral-500 dark:text-neutral-400 mb-3">
+            @{{ data.user.username }}
+          </p>
+          <p
+            v-if="data.user.bio"
+            class="text-neutral-600 dark:text-neutral-300 mb-3 max-w-md"
+          >
+            {{ data.user.bio }}
+          </p>
+          <p class="text-sm text-neutral-400 dark:text-neutral-500 flex items-center justify-center sm:justify-start gap-1">
+            <UIcon
+              name="i-heroicons-calendar"
+              class="w-4 h-4"
+            />
+            Joined {{ formatJoinDate(data.user.joinedAt) }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="bg-white dark:bg-neutral-800 rounded-xl p-4 text-center border border-neutral-200 dark:border-neutral-700">
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ data.stats.recipeCount }}
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ data.stats.recipeCount === 1 ? 'Recipe' : 'Recipes' }}
+          </p>
+        </div>
+        <div class="bg-white dark:bg-neutral-800 rounded-xl p-4 text-center border border-neutral-200 dark:border-neutral-700">
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ data.stats.collectionCount }}
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ data.stats.collectionCount === 1 ? 'Collection' : 'Collections' }}
+          </p>
+        </div>
+        <div class="bg-white dark:bg-neutral-800 rounded-xl p-4 text-center border border-neutral-200 dark:border-neutral-700">
+          <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
+            {{ data.stats.totalSavesReceived }}
+          </p>
+          <p class="text-sm text-neutral-500 dark:text-neutral-400">
+            {{ data.stats.totalSavesReceived === 1 ? 'Save' : 'Saves' }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-2 mb-6 border-b border-neutral-200 dark:border-neutral-700">
+        <button
+          :class="[
+            'px-4 py-2 font-medium transition-colors relative',
+            activeTab === 'recipes'
+              ? 'text-primary-600 dark:text-primary-400'
+              : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
+          ]"
+          @click="activeTab = 'recipes'"
+        >
+          Recipes
+          <span
+            v-if="activeTab === 'recipes'"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+          />
+        </button>
+        <button
+          :class="[
+            'px-4 py-2 font-medium transition-colors relative',
+            activeTab === 'collections'
+              ? 'text-primary-600 dark:text-primary-400'
+              : 'text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300'
+          ]"
+          @click="activeTab = 'collections'"
+        >
+          Collections
+          <span
+            v-if="activeTab === 'collections'"
+            class="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-500"
+          />
+        </button>
+      </div>
+
+      <!-- Recipes Tab -->
+      <div v-if="activeTab === 'recipes'">
+        <!-- New Recipe button (own profile only) -->
+        <div
+          v-if="isOwnProfile"
+          class="flex justify-end mb-4"
+        >
+          <UButton
+            to="/recipes/new"
+            color="primary"
+            icon="i-heroicons-plus"
+          >
+            New Recipe
+          </UButton>
+        </div>
+
+        <EmptyState
+          v-if="data.recipes.length === 0"
+          type="recipes"
+          :title="isOwnProfile ? 'No recipes yet' : 'No recipes yet'"
+          :description="isOwnProfile ? 'Create your first recipe to share with others.' : `${data.user.name} hasn't shared any recipes yet.`"
+          :action-label="isOwnProfile ? 'Create Recipe' : undefined"
+          :action-to="isOwnProfile ? '/recipes/new' : undefined"
+        />
+
+        <div
+          v-else
+          class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          <div
+            v-for="recipe in data.recipes"
+            :key="recipe.id"
+            class="relative"
+            :class="recipe.isPublished === false ? 'opacity-70' : ''"
+          >
+            <!-- Draft Badge -->
+            <div
+              v-if="recipe.isPublished === false"
+              class="absolute top-3 left-3 z-10 px-2 py-1 bg-amber-500 text-white text-xs font-medium rounded-full shadow"
+            >
+              Draft
+            </div>
+            <BrowseRecipeCard
+              :recipe="recipe"
+              view="grid"
+              @save="handleSave"
+              @add-to-collection="handleAddToCollection"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Collections Tab -->
+      <div v-if="activeTab === 'collections'">
+        <!-- New Collection button (own profile only) -->
+        <div
+          v-if="isOwnProfile"
+          class="flex justify-end mb-4"
+        >
+          <UButton
+            to="/collections/new"
+            color="primary"
+            icon="i-heroicons-plus"
+          >
+            New Collection
+          </UButton>
+        </div>
+
+        <EmptyState
+          v-if="data.collections.length === 0"
+          type="collections"
+          :title="isOwnProfile ? 'No collections yet' : 'No public collections'"
+          :description="isOwnProfile ? 'Create your first collection to organize recipes.' : `${data.user.name} hasn't shared any collections yet.`"
+          :action-label="isOwnProfile ? 'Create Collection' : undefined"
+          :action-to="isOwnProfile ? '/collections/new' : undefined"
+        />
+
+        <div
+          v-else
+          class="grid md:grid-cols-2 gap-4"
+        >
+          <NuxtLink
+            v-for="collection in data.collections"
+            :key="collection.id"
+            :to="`/collections/${username}/${collection.slug}`"
+            class="group block relative"
+            :class="collection.isPublic === false ? 'opacity-70' : ''"
+          >
+            <!-- Private Badge -->
+            <div
+              v-if="collection.isPublic === false"
+              class="absolute top-3 left-3 z-10 px-2 py-1 bg-neutral-500 text-white text-xs font-medium rounded-full shadow"
+            >
+              Private
+            </div>
+            <div class="bg-white dark:bg-neutral-800 rounded-xl overflow-hidden border border-neutral-200 dark:border-neutral-700 hover:border-primary-400 dark:hover:border-primary-600 transition-colors">
+              <!-- Preview Grid -->
+              <div class="aspect-[2/1] relative bg-neutral-100 dark:bg-neutral-900">
+                <div
+                  v-if="collection.previewPhotos.length > 0"
+                  class="grid grid-cols-2 gap-0.5 h-full"
+                >
+                  <img
+                    v-for="(photo, idx) in collection.previewPhotos.slice(0, 4)"
+                    :key="idx"
+                    :src="photo"
+                    :alt="`Recipe ${idx + 1}`"
+                    class="w-full h-full object-cover"
+                  >
+                  <div
+                    v-for="i in Math.max(0, 4 - collection.previewPhotos.length)"
+                    :key="`empty-${i}`"
+                    class="w-full h-full bg-neutral-200 dark:bg-neutral-700"
+                  />
+                </div>
+                <div
+                  v-else
+                  class="absolute inset-0 flex items-center justify-center"
+                >
+                  <UIcon
+                    name="i-heroicons-folder"
+                    class="w-12 h-12 text-neutral-300 dark:text-neutral-600"
+                  />
+                </div>
+              </div>
+
+              <!-- Content -->
+              <div class="p-4">
+                <h3 class="font-display text-lg text-neutral-700 dark:text-neutral-100 mb-1 group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                  {{ collection.name }}
+                </h3>
+                <p
+                  v-if="collection.description"
+                  class="text-sm text-neutral-500 dark:text-neutral-400 line-clamp-2 mb-2"
+                >
+                  {{ collection.description }}
+                </p>
+                <p class="text-sm text-neutral-400 dark:text-neutral-500">
+                  {{ collection.recipeCount }} {{ collection.recipeCount === 1 ? 'recipe' : 'recipes' }}
+                </p>
+              </div>
+            </div>
+          </NuxtLink>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>

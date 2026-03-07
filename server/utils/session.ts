@@ -1,73 +1,65 @@
 import type { H3Event } from 'h3'
+import { eq } from 'drizzle-orm'
+import { db, users } from '../db'
 
 export interface AuthUser {
   id: string
   email: string
   name: string
+  username: string | null
   avatar?: string
-}
-
-interface BetterAuthSession {
-  session: {
-    id: string
-    userId: string
-    expiresAt: string
-  }
-  user: {
-    id: string
-    email: string
-    name?: string
-    image?: string
-  }
 }
 
 /**
  * Get the authenticated user from the request.
- * Verifies the session by calling the auth service.
- * Returns null if not authenticated.
+ * Parses the user data from the Authorization header.
+ *
+ * Token format: base64({ userId, email, name })
+ *
+ * Note: This is a simplified auth for development.
+ * In production, this should verify with Neon Auth or use signed JWTs.
  */
 export async function getAuthUser(event: H3Event): Promise<AuthUser | null> {
   try {
-    // Get cookie header from request
-    const cookieHeader = getHeader(event, 'cookie')
+    // Get Authorization header (Bearer token) from request
+    const authHeader = getHeader(event, 'authorization')
 
-    if (!cookieHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return null
     }
 
-    // Call the auth service to get session
-    const authUrl = process.env.NEON_AUTH_URL
-    if (!authUrl) {
-      console.error('NEON_AUTH_URL not configured')
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+
+    // Decode the token (base64 JSON with user data)
+    try {
+      const decoded = Buffer.from(token, 'base64').toString('utf-8')
+      const userData = JSON.parse(decoded)
+
+      if (!userData.id) {
+        return null
+      }
+
+      // Fetch username from database
+      const dbUser = await db.query.users.findFirst({
+        where: eq(users.id, userData.id),
+        columns: { username: true },
+      })
+
+      return {
+        id: userData.id,
+        email: userData.email || '',
+        name: userData.name || 'User',
+        username: dbUser?.username || null,
+        avatar: userData.image,
+      }
+    } catch {
+      // Token isn't base64 JSON - might be a session token
+      // For now, return null (not authenticated)
+      console.error('[Auth] Invalid token format')
       return null
-    }
-
-    const response = await fetch(`${authUrl}/api/auth/get-session`, {
-      method: 'GET',
-      headers: {
-        'Cookie': cookieHeader,
-      },
-      credentials: 'include',
-    })
-
-    if (!response.ok) {
-      return null
-    }
-
-    const data = await response.json() as BetterAuthSession | null
-
-    if (!data?.user) {
-      return null
-    }
-
-    return {
-      id: data.user.id,
-      email: data.user.email,
-      name: data.user.name || data.user.email.split('@')[0] || 'User',
-      avatar: data.user.image,
     }
   } catch (err) {
-    console.error('Session verification failed:', err)
+    console.error('Auth failed:', err)
     return null
   }
 }

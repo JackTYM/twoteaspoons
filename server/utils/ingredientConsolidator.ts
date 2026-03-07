@@ -53,6 +53,7 @@ const sectionKeywords: Record<string, string[]> = {
     'can', 'broth', 'stock', 'sauce', 'tomato paste', 'honey', 'maple',
     'vanilla', 'baking', 'yeast', 'cocoa', 'chocolate', 'nut', 'seed',
     'spice', 'cumin', 'paprika', 'cinnamon', 'nutmeg', 'oregano', 'curry',
+    'peanut butter', 'almond butter', 'jelly', 'jam', 'preserves', 'nutella',
   ],
   beverages: [
     'juice', 'soda', 'water', 'tea', 'coffee', 'wine', 'beer',
@@ -189,8 +190,10 @@ function unitsCompatible(unit1: string | null, unit2: string | null): boolean {
 
 /**
  * Convert to base unit for combining (cups for volume, oz for weight)
+ * Note: Reserved for future use in advanced ingredient consolidation
  */
-function toBaseUnit(amount: number, unit: string | null): { amount: number; unit: string | null } {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _toBaseUnit(amount: number, unit: string | null): { amount: number; unit: string | null } {
   if (!unit) return { amount, unit }
 
   const u = unit.toLowerCase()
@@ -269,11 +272,20 @@ export function consolidateIngredients(ingredients: IngredientInput[]): Consolid
     }
 
     if (canCombine && entry.amounts.length > 0) {
-      // Convert all to base unit and sum
-      for (const a of entry.amounts) {
-        const converted = toBaseUnit(a.amount, a.unit)
-        totalAmount += converted.amount
-        finalUnit = converted.unit
+      // Only combine if units match exactly (don't convert between units)
+      const firstUnit = entry.amounts[0]?.unit || null
+      const allSameUnit = entry.amounts.every(a => (a.unit || null) === firstUnit)
+
+      if (allSameUnit) {
+        // Sum amounts with same unit
+        for (const a of entry.amounts) {
+          totalAmount += a.amount
+        }
+        finalUnit = firstUnit
+      } else {
+        // Different units - just take first amount (don't convert)
+        totalAmount = entry.amounts[0]?.amount || 0
+        finalUnit = entry.amounts[0]?.unit || null
       }
     } else {
       // Can't combine - just take first amount

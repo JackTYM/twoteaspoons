@@ -1,5 +1,6 @@
-import { db, recipes, ingredients, instructions } from '../../db'
+import { db, recipes, ingredients, instructions, recipeCategories } from '../../db'
 import { requireAuth } from '../../utils/session'
+import { getUniqueSlug } from '../../utils/slug'
 
 interface CreateRecipeBody {
   title: string
@@ -12,6 +13,7 @@ interface CreateRecipeBody {
   sourceUrl?: string
   sourceAuthor?: string
   sourceSite?: string
+  categoryIds?: number[]
   ingredients?: Array<{
     amount?: number | string
     unit?: string
@@ -21,6 +23,7 @@ interface CreateRecipeBody {
   instructions?: Array<{
     content: string
     timerMinutes?: number
+    ingredientIds?: number[]
   }>
 }
 
@@ -35,20 +38,35 @@ export default defineEventHandler(async (event) => {
     })
   }
 
+  // Helper to convert empty/invalid values to null for integer fields
+  // Handles: undefined, null, empty string, NaN
+  const toIntOrNull = (value: unknown): number | null => {
+    if (value === undefined || value === null || value === '') return null
+    const num = typeof value === 'number' ? value : Number(value)
+    return Number.isNaN(num) ? null : num
+  }
+
+  // Generate unique slug for the recipe
+  const slug = await getUniqueSlug(user.id, body.title)
+
   // Insert recipe
-  const [newRecipe] = await db.insert(recipes).values({
-    userId: user.id,
-    title: body.title,
-    description: body.description,
-    coverPhoto: body.coverPhoto,
-    prepTime: body.prepTime,
-    cookTime: body.cookTime,
-    servings: body.servings || 4,
-    isPublished: body.isPublished ?? true,
-    sourceUrl: body.sourceUrl,
-    sourceAuthor: body.sourceAuthor,
-    sourceSite: body.sourceSite,
-  }).returning()
+  const [newRecipe] = await db
+    .insert(recipes)
+    .values({
+      userId: user.id,
+      title: body.title,
+      slug,
+      description: body.description || null,
+      coverPhoto: body.coverPhoto || null,
+      prepTime: toIntOrNull(body.prepTime),
+      cookTime: toIntOrNull(body.cookTime),
+      servings: toIntOrNull(body.servings) || 4,
+      isPublished: body.isPublished ?? true,
+      sourceUrl: body.sourceUrl || null,
+      sourceAuthor: body.sourceAuthor || null,
+      sourceSite: body.sourceSite || null,
+    })
+    .returning()
 
   if (!newRecipe) {
     throw createError({
@@ -79,9 +97,30 @@ export default defineEventHandler(async (event) => {
         stepNumber: index + 1,
         content: inst.content,
         timerMinutes: inst.timerMinutes,
+        ingredientIds: inst.ingredientIds?.length
+          ? JSON.stringify(inst.ingredientIds)
+          : null,
       }))
     )
   }
 
-  return { recipe: newRecipe }
+  // Insert categories
+  if (body.categoryIds?.length) {
+    await db.insert(recipeCategories).values(
+      body.categoryIds.map(categoryId => ({
+        recipeId: newRecipe.id,
+        categoryId,
+      }))
+    )
+  }
+
+  // Return recipe with author info for proper URL generation
+  return {
+    recipe: {
+      ...newRecipe,
+      author: {
+        username: user.username,
+      },
+    },
+  }
 })

@@ -6,82 +6,108 @@ export interface User {
   name: string | null
   email: string | null
   image: string | null
+  avatar: string | null
+  username: string | null
+  bio: string | null
   isAnonymous: boolean
 }
 
 export interface AuthState {
   user: User | null
+  token: string | null
   isAuthenticated: boolean
   isAnonymous: boolean
-  isLoading: boolean
 }
 
-// Global state shared across components
-const authState = reactive<AuthState>({
-  user: null,
-  isAuthenticated: false,
-  isAnonymous: false,
-  isLoading: true,
-})
+// Cookie key
+const AUTH_COOKIE_KEY = 'tts_auth'
 
 interface UseAuthReturn {
   user: ComputedRef<User | null>
+  token: ComputedRef<string | null>
   isAuthenticated: ComputedRef<boolean>
   isAnonymous: ComputedRef<boolean>
   isLoading: ComputedRef<boolean>
+  initAuth: () => void
   fetchSession: () => Promise<void>
   signIn: (email: string, password: string) => Promise<{ error?: string }>
   signUp: (email: string, password: string, name?: string) => Promise<{ error?: string }>
   signInWithOAuth: (provider: 'google' | 'github') => Promise<void>
   signOut: () => Promise<void>
   linkAnonymousAccount: (email: string, password: string) => Promise<{ error?: string }>
+  getAuthHeaders: () => Record<string, string>
+  refreshUserProfile: () => Promise<void>
 }
 
 export function useAuth(): UseAuthReturn {
-  const user = computed(() => authState.user)
-  const isAuthenticated = computed(() => authState.isAuthenticated)
-  const isAnonymous = computed(() => authState.isAnonymous)
-  const isLoading = computed(() => authState.isLoading)
+  // Use Nuxt's useCookie for SSR-compatible storage
+  const authCookie = useCookie<{ token: string; user: User } | null>(AUTH_COOKIE_KEY, {
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
 
-  // Fetch current session (works for both anonymous and authenticated)
-  async function fetchSession(): Promise<void> {
-    authState.isLoading = true
-    try {
-      const client = useNeonClient()
-      const session = await client.auth.getSession()
+  // Computed values directly from the cookie - this ensures SSR consistency
+  const user = computed(() => authCookie.value?.user ?? null)
+  const token = computed(() => authCookie.value?.token ?? null)
+  const isAuthenticated = computed(() => !!authCookie.value?.user)
+  const isAnonymous = computed(() => authCookie.value?.user?.isAnonymous ?? false)
+  // Never loading since cookie is available synchronously
+  const isLoading = computed(() => false)
 
-      if (session?.user) {
-        authState.user = {
-          id: session.user.id,
-          name: session.user.name || null,
-          email: session.user.email || null,
-          image: session.user.image || null,
-          isAnonymous: session.user.isAnonymous ?? false,
-        }
-        authState.isAuthenticated = true
-        authState.isAnonymous = session.user.isAnonymous ?? false
-      } else {
-        // Get anonymous session
-        const anonSession = await client.auth.signIn.anonymous()
-        if (anonSession?.user) {
-          authState.user = {
-            id: anonSession.user.id,
-            name: null,
-            email: null,
-            image: null,
-            isAnonymous: true,
-          }
-          authState.isAuthenticated = true
-          authState.isAnonymous = true
-        }
+  // Store auth data in cookie
+  function storeAuthData(newToken: string | null, newUser: User | null): void {
+    if (newToken && newUser) {
+      authCookie.value = { token: newToken, user: newUser }
+    } else {
+      authCookie.value = null
+    }
+  }
+
+  // No-op for compatibility
+  function initAuth(): void {}
+  async function fetchSession(): Promise<void> {}
+
+  // Get headers for authenticated API requests
+  function getAuthHeaders(): Record<string, string> {
+    const currentUser = authCookie.value?.user
+    if (currentUser) {
+      const tokenData = {
+        id: currentUser.id,
+        email: currentUser.email,
+        name: currentUser.name,
+        image: currentUser.image,
       }
-    } catch (error) {
-      console.error('Failed to fetch session:', error)
-      authState.user = null
-      authState.isAuthenticated = false
-      authState.isAnonymous = false
-    } finally {
-      authState.isLoading = false
+      const encodedToken = btoa(JSON.stringify(tokenData))
+      return { Authorization: `Bearer ${encodedToken}` }
+    }
+    return {}
+  }
+
+  // Fetch the user's profile to get username, avatar, name, bio
+  async function fetchUserProfile(userId: string): Promise<{
+    username: string | null
+    avatar: string | null
+    name: string | null
+    bio: string | null
+  }> {
+    try {
+      const response = await $fetch<{ user: {
+        username: string | null
+        avatar: string | null
+        name: string | null
+        bio: string | null
+      } }>(
+        `/api/users/${userId}/profile`
+      )
+      return {
+        username: response.user?.username || null,
+        avatar: response.user?.avatar || null,
+        name: response.user?.name || null,
+        bio: response.user?.bio || null,
+      }
+    } catch {
+      return { username: null, avatar: null, name: null, bio: null }
     }
   }
 
@@ -94,16 +120,37 @@ export function useAuth(): UseAuthReturn {
         password,
       })
 
-      if (result?.user) {
-        authState.user = {
-          id: result.user.id,
-          name: result.user.name || null,
-          email: result.user.email || null,
-          image: result.user.image || null,
+      const userData = result?.data?.user || result?.user
+      const errorData = result?.error
+
+      if (errorData) {
+        return { error: typeof errorData === 'string' ? errorData : errorData.message || 'Sign in failed' }
+      }
+
+      if (userData) {
+        const sessionToken = result?.data?.token || result?.token
+        // Ensure user record exists in our database (might not if created via OAuth or Neon directly)
+        await $fetch('/api/users/ensure', {
+          method: 'POST',
+          body: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+          },
+        }).catch(() => {})
+        // Fetch profile from our database
+        const profile = await fetchUserProfile(userData.id)
+        const user: User = {
+          id: userData.id,
+          name: profile.name || userData.name || null,
+          email: userData.email || null,
+          image: userData.image || null,
+          avatar: profile.avatar,
+          username: profile.username,
+          bio: profile.bio,
           isAnonymous: false,
         }
-        authState.isAuthenticated = true
-        authState.isAnonymous = false
+        storeAuthData(sessionToken || null, user)
         clearSessionCache()
         return {}
       }
@@ -124,16 +171,37 @@ export function useAuth(): UseAuthReturn {
         name: name || undefined,
       })
 
-      if (result?.user) {
-        authState.user = {
-          id: result.user.id,
-          name: result.user.name || null,
-          email: result.user.email || null,
-          image: result.user.image || null,
+      const userData = result?.data?.user || result?.user
+      const errorData = result?.error
+
+      if (errorData) {
+        return { error: typeof errorData === 'string' ? errorData : errorData.message || 'Sign up failed' }
+      }
+
+      if (userData) {
+        const sessionToken = result?.data?.token || result?.token
+        // Ensure user record exists in our database with username
+        await $fetch('/api/users/ensure', {
+          method: 'POST',
+          body: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name || name,
+          },
+        }).catch(() => {})
+        // Fetch profile from our database
+        const profile = await fetchUserProfile(userData.id)
+        const user: User = {
+          id: userData.id,
+          name: profile.name || userData.name || null,
+          email: userData.email || null,
+          image: userData.image || null,
+          avatar: profile.avatar,
+          username: profile.username,
+          bio: profile.bio,
           isAnonymous: false,
         }
-        authState.isAuthenticated = true
-        authState.isAnonymous = false
+        storeAuthData(sessionToken || null, user)
         clearSessionCache()
         return {}
       }
@@ -147,35 +215,55 @@ export function useAuth(): UseAuthReturn {
   // Sign in with OAuth provider
   async function signInWithOAuth(provider: 'google' | 'github'): Promise<void> {
     const client = useNeonClient()
-    await client.auth.signIn.oauth({
+    await client.auth.signIn.social({
       provider,
-      callbackURL: '/recipes',
+      callbackURL: '/',
     })
   }
 
   // Link anonymous account to email/password
   async function linkAnonymousAccount(email: string, password: string): Promise<{ error?: string }> {
-    if (!authState.isAnonymous) {
+    if (!isAnonymous.value) {
       return { error: 'Not an anonymous user' }
     }
 
     try {
       const client = useNeonClient()
-      // Use the link account method to upgrade anonymous to full account
       const result = await client.auth.linkAccount.email({
         email,
         password,
       })
 
-      if (result?.user) {
-        authState.user = {
-          id: result.user.id,
-          name: result.user.name || null,
-          email: result.user.email || null,
-          image: result.user.image || null,
+      const userData = result?.data?.user || result?.user
+      const errorData = result?.error
+
+      if (errorData) {
+        return { error: typeof errorData === 'string' ? errorData : errorData.message || 'Failed to link account' }
+      }
+
+      if (userData) {
+        // Ensure user record exists in our database with username
+        await $fetch('/api/users/ensure', {
+          method: 'POST',
+          body: {
+            id: userData.id,
+            email: userData.email,
+            name: userData.name,
+          },
+        }).catch(() => {})
+        // Fetch profile from our database
+        const profile = await fetchUserProfile(userData.id)
+        const user: User = {
+          id: userData.id,
+          name: profile.name || userData.name || null,
+          email: userData.email || null,
+          image: userData.image || null,
+          avatar: profile.avatar,
+          username: profile.username,
+          bio: profile.bio,
           isAnonymous: false,
         }
-        authState.isAnonymous = false
+        storeAuthData(token.value, user)
         clearSessionCache()
         return {}
       }
@@ -186,28 +274,53 @@ export function useAuth(): UseAuthReturn {
     }
   }
 
+  // Refresh user profile to get latest data (username, avatar, name, bio)
+  async function refreshUserProfile(): Promise<void> {
+    const currentUser = authCookie.value?.user
+    if (!currentUser) return
+
+    try {
+      const profile = await fetchUserProfile(currentUser.id)
+      // Update all profile fields that might have changed
+      storeAuthData(token.value, {
+        ...currentUser,
+        username: profile.username ?? currentUser.username,
+        avatar: profile.avatar ?? currentUser.avatar,
+        name: profile.name ?? currentUser.name,
+        bio: profile.bio ?? currentUser.bio,
+      })
+    } catch {
+      // Ignore errors
+    }
+  }
+
   // Sign out
   async function signOut(): Promise<void> {
     try {
       const client = useNeonClient()
       await client.auth.signOut()
+    } catch {
+      // Ignore errors from SDK signOut
     } finally {
+      storeAuthData(null, null)
       clearSessionCache()
-      // After sign out, get a new anonymous session
-      await fetchSession()
     }
   }
 
   return {
     user,
+    token,
     isAuthenticated,
     isAnonymous,
     isLoading,
+    initAuth,
     fetchSession,
     signIn,
     signUp,
     signInWithOAuth,
     signOut,
+    getAuthHeaders,
     linkAnonymousAccount,
+    refreshUserProfile,
   }
 }
