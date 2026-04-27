@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RecipeWithRelations } from '~/types/recipe'
+import { transformToRecipeWithRelations } from '~/utils/transformCase'
 
 /**
  * Legacy route - redirects to new username/slug URL pattern.
@@ -7,14 +7,20 @@ import type { RecipeWithRelations } from '~/types/recipe'
  */
 const route = useRoute()
 const id = computed(() => route.params.id as string)
-const { getAuthHeaders } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
 
+// Services
+const recipeService = useRecipeService()
+
 // Fetch recipe to get slug and username for redirect
-const { data, error } = await useFetch<{ recipe: RecipeWithRelations }>(
-  `/api/recipes/${id.value}`,
-  {
-    headers: getAuthHeaders(),
+const { data, error } = await useAsyncData(
+  `recipe-id-${id.value}`,
+  async () => {
+    const recipeData = await recipeService.getRecipeById(parseInt(id.value, 10))
+    if (!recipeData) {
+      throw createError({ statusCode: 404, message: 'Recipe not found' })
+    }
+    return { recipe: transformToRecipeWithRelations(recipeData) }
   }
 )
 
