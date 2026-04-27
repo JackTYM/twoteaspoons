@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import type { DbRecipe, DbCollection } from '~/types/database'
+
 const route = useRoute()
 const username = route.params.username as string
 
+// Initialize services
+const userService = useUserService()
+const recipeService = useRecipeService()
+const collectionService = useCollectionService()
+
+// View model interfaces (camelCase for template)
 interface ProfileRecipe {
   id: number
   slug: string
@@ -47,44 +55,80 @@ interface ProfileData {
   collections: ProfileCollection[]
 }
 
-const { data, status, error } = await useFetch<ProfileData>(`/api/users/by-username/${username}/public`)
+// Helper to transform DbRecipe to ProfileRecipe
+function transformRecipe(recipe: DbRecipe, authorName: string, authorUsername: string | null): ProfileRecipe {
+  return {
+    id: recipe.id,
+    slug: recipe.slug,
+    title: recipe.title,
+    description: recipe.description,
+    coverPhoto: recipe.cover_photo,
+    prepTime: recipe.prep_time,
+    cookTime: recipe.cook_time,
+    servings: recipe.servings,
+    saveCount: recipe.save_count,
+    createdAt: recipe.created_at,
+    isPublished: recipe.is_published,
+    author: { name: authorName, username: authorUsername },
+  }
+}
+
+// Helper to transform DbCollection to ProfileCollection
+function transformCollection(collection: DbCollection, recipeCount: number = 0): ProfileCollection {
+  return {
+    id: collection.id,
+    name: collection.name,
+    slug: collection.slug,
+    description: collection.description,
+    coverPhoto: collection.cover_photo,
+    createdAt: collection.created_at,
+    recipeCount,
+    previewPhotos: [], // Will be populated separately if needed
+    isPublic: collection.is_public,
+  }
+}
+
+// Fetch profile data using the user service
+const { data, status, error } = await useAsyncData<ProfileData | null>(
+  `user-profile-${username}`,
+  async () => {
+    const profile = await userService.getUserByUsername(username)
+    if (!profile) return null
+
+    // Calculate total saves received
+    const totalSaves = profile.recipes.reduce((sum, r) => sum + (r.save_count || 0), 0)
+
+    // Transform data to view model format
+    return {
+      user: {
+        id: profile.user.id,
+        name: profile.user.name,
+        username: profile.user.username,
+        avatar: profile.user.avatar,
+        bio: profile.user.bio,
+        joinedAt: profile.user.created_at,
+      },
+      stats: {
+        recipeCount: profile.recipes.length,
+        collectionCount: profile.collections.length,
+        totalSavesReceived: totalSaves,
+      },
+      recipes: profile.recipes.map(r =>
+        transformRecipe(r, profile.user.name, profile.user.username)
+      ),
+      collections: profile.collections.map(c => transformCollection(c)),
+    }
+  }
+)
 
 // Check if viewing own profile
-const { user: currentUser, isAuthenticated, isAnonymous, getAuthHeaders } = useAuth()
+const { user: currentUser, isAuthenticated, isAnonymous } = useAuth()
 const isOwnProfile = computed(() =>
   isAuthenticated.value && !isAnonymous.value && currentUser.value?.username === username
 )
 
-// Fetch all recipes (including drafts) if viewing own profile
-interface MyRecipe {
-  id: number
-  slug: string
-  title: string
-  description: string | null
-  coverPhoto: string | null
-  prepTime: number | null
-  cookTime: number | null
-  servings: number | null
-  saveCount: number | null
-  isPublished: boolean
-  createdAt: string
-  author: { id: string; name: string; username: string | null } | null
-}
-
 // Fetch own content (including drafts and private) when viewing own profile
 const hasFetchedOwnContent = ref(false)
-
-interface MyCollection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  coverPhoto: string | null
-  isPublic: boolean
-  createdAt: string
-  recipeCount: number
-  previewPhotos: string[]
-}
 
 async function fetchOwnContent(): Promise<void> {
   if (hasFetchedOwnContent.value || !data.value) return
@@ -99,40 +143,55 @@ async function fetchOwnContent(): Promise<void> {
   hasFetchedOwnContent.value = true
 
   try {
-    // Fetch all recipes (including drafts)
-    const recipesResult = await $fetch<{ recipes: MyRecipe[] }>('/api/recipes/mine', {
-      headers: getAuthHeaders(),
-    })
+    // Fetch all recipes (including drafts) using the recipe service
+    const myRecipes = await recipeService.getMyRecipes()
 
     // Re-verify after async operation to prevent race conditions
     if (!isOwnProfile.value || !data.value || data.value.user.id !== currentUser.value?.id) {
       return
     }
 
-    if (recipesResult?.recipes) {
-      data.value.recipes = recipesResult.recipes.map(r => ({
-        ...r,
-        author: r.author ? { name: r.author.name, username: r.author.username } : { name: '', username: null },
+    if (myRecipes.length > 0) {
+      data.value.recipes = myRecipes.map(r => ({
+        id: r.id,
+        slug: r.slug,
+        title: r.title,
+        description: r.description,
+        coverPhoto: r.cover_photo,
+        prepTime: r.prep_time,
+        cookTime: r.cook_time,
+        servings: r.servings,
+        saveCount: r.save_count,
+        createdAt: r.created_at,
+        isPublished: r.is_published,
+        author: r.author
+          ? { name: r.author.name, username: r.author.username }
+          : { name: '', username: null },
       }))
-      data.value.stats.recipeCount = recipesResult.recipes.length
+      data.value.stats.recipeCount = myRecipes.length
     }
 
-    // Fetch all collections (including private)
-    const collectionsResult = await $fetch<{ collections: MyCollection[] }>('/api/collections', {
-      headers: getAuthHeaders(),
-    })
+    // Fetch all collections (including private) using the collection service
+    const { data: myCollections } = await collectionService.getMyCollections()
 
     // Re-verify again after second async operation
     if (!isOwnProfile.value || !data.value || data.value.user.id !== currentUser.value?.id) {
       return
     }
 
-    if (collectionsResult?.collections) {
-      data.value.collections = collectionsResult.collections.map(c => ({
-        ...c,
-        previewPhotos: c.previewPhotos || [],
+    if (myCollections && myCollections.length > 0) {
+      data.value.collections = myCollections.map(c => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug,
+        description: c.description,
+        coverPhoto: c.cover_photo,
+        createdAt: c.created_at,
+        recipeCount: c.recipe_count,
+        previewPhotos: [],
+        isPublic: c.is_public,
       }))
-      data.value.stats.collectionCount = collectionsResult.collections.length
+      data.value.stats.collectionCount = myCollections.length
     }
   } catch (err) {
     console.error('Failed to fetch own content:', err)
@@ -186,12 +245,9 @@ async function handleSave(recipeId: number): Promise<void> {
     return
   }
 
-  // For now, just save (we don't track isSaved on public profiles yet)
+  // Save the recipe using the recipe service
   try {
-    await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-    })
+    await recipeService.saveRecipe(recipeId)
   } catch (err) {
     console.error('Failed to save recipe:', err)
   }
