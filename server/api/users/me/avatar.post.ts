@@ -47,9 +47,11 @@ export default defineEventHandler(async (event) => {
   })
   const oldAvatar = currentUser?.avatar
 
-  // Upload new avatar
+  // Upload new avatar - convert Buffer to ArrayBuffer
+  const arrayBuffer = new Uint8Array(file.data).buffer as ArrayBuffer
   const avatarUrl = await uploadImage(
-    file.data,
+    event,
+    arrayBuffer,
     'avatars',
     user.id,
     file.filename || 'avatar',
@@ -69,7 +71,7 @@ export default defineEventHandler(async (event) => {
   // Delete old avatar if it exists
   if (oldAvatar) {
     try {
-      await deleteImage(oldAvatar)
+      await deleteImage(event, oldAvatar)
     } catch (err) {
       // Don't fail if we can't delete the old avatar
       console.error('Failed to delete old avatar:', err)

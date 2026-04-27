@@ -33,8 +33,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const buffer = Buffer.from(await file.arrayBuffer())
-  const url = await uploadImage(buffer, category, user.id, file.name, file.type)
+  const arrayBuffer = await file.arrayBuffer()
+  const url = await uploadImage(event, arrayBuffer, category, user.id, file.name, file.type)
 
   return { url }
 })

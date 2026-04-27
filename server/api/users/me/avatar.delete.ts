@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
 
   // Delete from R2
   try {
-    await deleteImage(currentUser.avatar)
+    await deleteImage(event, currentUser.avatar)
   } catch (err) {
     console.error('Failed to delete avatar from storage:', err)
   }
