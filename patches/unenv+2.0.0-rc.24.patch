@@ -1,0 +1,12 @@
+diff --git a/node_modules/unenv/dist/runtime/polyfill/process.mjs b/node_modules/unenv/dist/runtime/polyfill/process.mjs
+index bb96264..f33eb9d 100644
+--- a/node_modules/unenv/dist/runtime/polyfill/process.mjs
++++ b/node_modules/unenv/dist/runtime/polyfill/process.mjs
+@@ -5,6 +5,6 @@ globalThis.process = originalProcess ? new Proxy(originalProcess, { get(target,
+ 	if (Reflect.has(target, prop)) {
+ 		return Reflect.get(target, prop, receiver);
+ 	}
+-	return Reflect.get(processModule, prop, receiver);
++	return Reflect.get(processModule, prop, processModule);
+ } }) : processModule;
+ export default globalThis.process;
