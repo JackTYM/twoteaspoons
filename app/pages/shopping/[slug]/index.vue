@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ShoppingSection } from '~/components/shopping-editor/types'
 import ShoppingEditor from '~/components/shopping-editor/ShoppingEditor.vue'
+import type { DbShoppingItem } from '~/types/database'
 
 definePageMeta({
   middleware: 'auth',
@@ -8,7 +9,8 @@ definePageMeta({
 
 const route = useRoute()
 const listSlug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
+
+const shoppingService = useShoppingListService()
 
 // Editor ref for edit mode
 const editorRef = ref<InstanceType<typeof ShoppingEditor> | null>(null)
@@ -31,25 +33,21 @@ interface Section {
   items: ShoppingItem[]
 }
 
-interface ShoppingListData {
-  list: {
-    id: number
-    name: string
-    slug: string
-    createdAt: string
-  }
-  sections: Section[]
-  totalItems: number
-  checkedItems: number
-}
-
 const {
-  data: fetchedData,
+  data: rawData,
   status,
   refresh,
-} = await useFetch<ShoppingListData>(`/api/shopping-lists/${listSlug.value}`, {
-  headers: getAuthHeaders(),
-})
+} = await useAsyncData(
+  `shopping-list-${listSlug.value}`,
+  async () => {
+    try {
+      return await shoppingService.getShoppingListBySlug(listSlug.value)
+    } catch {
+      return null
+    }
+  },
+  { watch: [listSlug] }
+)
 
 // Local reactive state for sections (allows mutation without full re-render)
 const sections = ref<Section[]>([])
@@ -57,19 +55,49 @@ const checkedCount = ref(0)
 const listInfo = ref<{ id: number; name: string; slug: string; createdAt: string } | null>(null)
 const totalCount = ref(0)
 
+// Transform raw DB items to sections grouped by section name
+function transformToSections(items: DbShoppingItem[]): Section[] {
+  const sectionMap = new Map<string, ShoppingItem[]>()
+
+  for (const item of items) {
+    const sectionName = item.section || 'other'
+    if (!sectionMap.has(sectionName)) {
+      sectionMap.set(sectionName, [])
+    }
+    sectionMap.get(sectionName)!.push({
+      id: item.id,
+      item: item.item,
+      amount: item.amount,
+      unit: item.unit,
+      section: sectionName,
+      checked: item.checked,
+      sortOrder: item.sort_order,
+    })
+  }
+
+  // Sort items within each section by sortOrder
+  for (const items of sectionMap.values()) {
+    items.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  }
+
+  return Array.from(sectionMap.entries()).map(([name, items]) => ({
+    name,
+    items,
+  }))
+}
+
 // Initialize local state from fetched data
 watchEffect(() => {
-  if (fetchedData.value) {
-    sections.value = fetchedData.value.sections.map((s) => ({
-      ...s,
-      items: s.items.map((i) => ({
-        ...i,
-        sortOrder: (i as ShoppingItem).sortOrder ?? 0,
-      })),
-    }))
-    checkedCount.value = fetchedData.value.checkedItems
-    totalCount.value = fetchedData.value.totalItems
-    listInfo.value = fetchedData.value.list
+  if (rawData.value) {
+    sections.value = transformToSections(rawData.value.items)
+    checkedCount.value = rawData.value.checked_count
+    totalCount.value = rawData.value.total_count
+    listInfo.value = {
+      id: rawData.value.id,
+      name: rawData.value.name,
+      slug: rawData.value.slug,
+      createdAt: rawData.value.created_at,
+    }
   }
 })
 
@@ -90,11 +118,7 @@ async function toggleItem(item: ShoppingItem): Promise<void> {
   checkedCount.value += item.checked ? 1 : -1
 
   try {
-    await $fetch(`/api/shopping-lists/${listSlug.value}/items/${item.id}`, {
-      method: 'PATCH',
-      body: { checked: item.checked },
-      headers: getAuthHeaders(),
-    })
+    await shoppingService.toggleItemChecked(item.id)
   } catch (err) {
     // Revert on error
     item.checked = !item.checked
@@ -126,9 +150,9 @@ function enterEditMode(): void {
 async function handleEditSave(): Promise<void> {
   await refresh()
   // Check if slug changed after refresh
-  if (fetchedData.value?.list.slug && fetchedData.value.list.slug !== listSlug.value) {
+  if (rawData.value?.slug && rawData.value.slug !== listSlug.value) {
     // Redirect to the new slug
-    router.replace(`/shopping/${fetchedData.value.list.slug}`)
+    router.replace(`/shopping/${rawData.value.slug}`)
   } else {
     router.push({ query: {} })
   }
@@ -149,8 +173,10 @@ const editorData = computed(() => ({
 // Recipe picker modal for edit mode
 const showRecipePicker = ref(false)
 
-// Recipes data
-interface Recipe {
+// Recipes data - use recipe service
+const recipeService = useRecipeService()
+
+interface RecipeDisplay {
   id: number
   title: string
   coverPhoto: string | null
@@ -159,10 +185,29 @@ interface Recipe {
   cookTime: number | null
 }
 
-const { data: recipesData, status: recipesStatus } = await useFetch<{ recipes: Recipe[] }>('/api/recipes', {
-  headers: getAuthHeaders(),
+const { data: rawRecipes, status: recipesStatus } = await useAsyncData(
+  'my-recipes-for-shopping',
+  async () => {
+    try {
+      return await recipeService.getMyRecipes()
+    } catch {
+      return []
+    }
+  }
+)
+
+// Transform snake_case to camelCase for template
+const recipes = computed<RecipeDisplay[]>(() => {
+  if (!rawRecipes.value) return []
+  return rawRecipes.value.map((r) => ({
+    id: r.id,
+    title: r.title,
+    coverPhoto: r.cover_photo,
+    servings: r.servings,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+  }))
 })
-const recipes = computed(() => recipesData.value?.recipes || [])
 
 // Recipe search/filter
 const searchQuery = ref('')
@@ -255,40 +300,25 @@ function categorizeIngredient(item: string): string {
   return 'other'
 }
 
-// Add ingredients from a recipe (for edit mode - calls API directly)
+// Add ingredients from a recipe (for edit mode - calls service directly)
 async function addRecipeIngredients(recipeId: number): Promise<void> {
   if (addedRecipeIds.value.has(recipeId)) return
+  if (!listInfo.value) return
 
   try {
-    // Fetch recipe with ingredients
-    const result = await $fetch<{
-      recipe: {
-        id: number
-        title: string
-        ingredients: Array<{
-          amount: string | null
-          unit: string | null
-          item: string
-        }>
-      }
-    }>(`/api/recipes/by-id/${recipeId}`, {
-      headers: getAuthHeaders(),
-    })
+    // Fetch recipe with ingredients using service
+    const recipe = await recipeService.getRecipeById(recipeId)
 
-    if (!result.recipe?.ingredients?.length) return
+    if (!recipe?.ingredients?.length) return
 
-    // Add items to the list via API
-    for (const ing of result.recipe.ingredients) {
+    // Add items to the list via service
+    for (const ing of recipe.ingredients) {
       const sectionName = categorizeIngredient(ing.item)
-      await $fetch(`/api/shopping-lists/${listSlug.value}/items`, {
-        method: 'POST',
-        body: {
-          item: ing.item,
-          amount: ing.amount || null,
-          unit: ing.unit || null,
-          section: sectionName,
-        },
-        headers: getAuthHeaders(),
+      await shoppingService.addItem(listInfo.value.id, {
+        item: ing.item,
+        amount: ing.amount || null,
+        unit: ing.unit || null,
+        section: sectionName,
       })
     }
 

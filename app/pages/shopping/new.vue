@@ -11,8 +11,10 @@ useSeoMeta({
   description: 'Create a shopping list from your recipes or from scratch',
 })
 
-const { getAuthHeaders } = useAuth()
 const router = useRouter()
+
+const shoppingService = useShoppingListService()
+const recipeService = useRecipeService()
 
 // Editor ref
 const editorRef = ref<InstanceType<typeof ShoppingEditor> | null>(null)
@@ -22,8 +24,8 @@ const error = ref('')
 // Recipe picker modal
 const showRecipePicker = ref(false)
 
-// Recipes data
-interface Recipe {
+// Recipes data - use recipe service
+interface RecipeDisplay {
   id: number
   title: string
   coverPhoto: string | null
@@ -32,10 +34,29 @@ interface Recipe {
   cookTime: number | null
 }
 
-const { data: recipesData, status: recipesStatus } = await useFetch<{ recipes: Recipe[] }>('/api/recipes', {
-  headers: getAuthHeaders(),
+const { data: rawRecipes, status: recipesStatus } = await useAsyncData(
+  'my-recipes-for-shopping-new',
+  async () => {
+    try {
+      return await recipeService.getMyRecipes()
+    } catch {
+      return []
+    }
+  }
+)
+
+// Transform snake_case to camelCase for template
+const recipes = computed<RecipeDisplay[]>(() => {
+  if (!rawRecipes.value) return []
+  return rawRecipes.value.map((r) => ({
+    id: r.id,
+    title: r.title,
+    coverPhoto: r.cover_photo,
+    servings: r.servings,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+  }))
 })
-const recipes = computed(() => recipesData.value?.recipes || [])
 
 // Recipe search/filter
 const searchQuery = ref('')
@@ -58,29 +79,17 @@ async function addRecipeIngredients(recipeId: number): Promise<void> {
   if (addedRecipeIds.value.has(recipeId)) return
 
   try {
-    // Fetch recipe with ingredients
-    const result = await $fetch<{
-      recipe: {
-        id: number
-        title: string
-        ingredients: Array<{
-          amount: string | null
-          unit: string | null
-          item: string
-        }>
-      }
-    }>(`/api/recipes/by-id/${recipeId}`, {
-      headers: getAuthHeaders(),
-    })
+    // Fetch recipe with ingredients using service
+    const recipe = await recipeService.getRecipeById(recipeId)
 
-    if (!result.recipe?.ingredients?.length) return
+    if (!recipe?.ingredients?.length) return
 
     // Group new ingredients by section (using simple categorization)
     // Build fresh sections with only the new items - let mergeSections handle combining
     const newSectionsByName = new Map<string, ShoppingSection>()
     let idCounter = -Date.now()
 
-    for (const ing of result.recipe.ingredients) {
+    for (const ing of recipe.ingredients) {
       const sectionName = categorizeIngredient(ing.item)
 
       if (!newSectionsByName.has(sectionName)) {
@@ -192,6 +201,15 @@ function categorizeIngredient(item: string): string {
   return 'other'
 }
 
+// Generate slug from name
+function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+    .substring(0, 50)
+}
+
 // Handle editor submit
 async function handleEditorSubmit(data: { name: string; sections: ShoppingSection[] }): Promise<void> {
   if (!data.name.trim()) {
@@ -203,34 +221,28 @@ async function handleEditorSubmit(data: { name: string; sections: ShoppingSectio
   error.value = ''
 
   try {
-    // Create empty list first
-    const result = await $fetch<{ list: { id: number; slug: string } }>('/api/shopping-lists/empty', {
-      method: 'POST',
-      body: {
-        name: data.name.trim(),
-      },
-      headers: getAuthHeaders(),
+    // Create list using service
+    const slug = generateSlug(data.name.trim())
+    const newList = await shoppingService.createShoppingList({
+      name: data.name.trim(),
+      slug,
     })
 
     // Add items to the list
     for (const section of data.sections) {
       for (const item of section.items) {
-        await $fetch(`/api/shopping-lists/${result.list.slug}/items`, {
-          method: 'POST',
-          body: {
-            item: item.item,
-            amount: item.amount || null,
-            unit: item.unit || null,
-            section: section.name,
-          },
-          headers: getAuthHeaders(),
+        await shoppingService.addItem(newList.id, {
+          item: item.item,
+          amount: item.amount || null,
+          unit: item.unit || null,
+          section: section.name,
         })
       }
     }
 
     // Clear draft on successful creation
     editorRef.value?.clearDraft()
-    navigateTo(`/shopping/${result.list.slug}`)
+    navigateTo(`/shopping/${newList.slug}`)
   } catch (err) {
     console.error('Failed to create shopping list:', err)
     error.value = 'Failed to create shopping list'

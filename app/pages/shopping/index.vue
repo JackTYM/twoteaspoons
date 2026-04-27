@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { ShoppingListWithItems } from '~/services/shoppingListService'
+
 definePageMeta({
   middleware: 'auth',
 })
@@ -8,9 +10,10 @@ useSeoMeta({
   description: 'Your shopping lists',
 })
 
-const { getAuthHeaders } = useAuth()
+const shoppingService = useShoppingListService()
 
-interface ShoppingList {
+// Transformed list type for component consumption (camelCase)
+interface ShoppingListDisplay {
   id: number
   name: string
   slug: string
@@ -19,11 +22,29 @@ interface ShoppingList {
   checkedCount: number
 }
 
-const { data, status, refresh } = await useFetch<{ lists: ShoppingList[] }>('/api/shopping-lists', {
-  headers: getAuthHeaders(),
-})
+const { data: rawLists, status, refresh } = await useAsyncData(
+  'shopping-lists',
+  async () => {
+    try {
+      return await shoppingService.getShoppingLists()
+    } catch {
+      return []
+    }
+  }
+)
 
-const lists = computed(() => data.value?.lists || [])
+// Transform snake_case to camelCase for components
+const lists = computed<ShoppingListDisplay[]>(() => {
+  if (!rawLists.value) return []
+  return rawLists.value.map((list: ShoppingListWithItems) => ({
+    id: list.id,
+    name: list.name,
+    slug: list.slug,
+    createdAt: list.created_at,
+    itemCount: list.total_count,
+    checkedCount: list.checked_count,
+  }))
+})
 
 // Calculate stats
 const totalLists = computed(() => lists.value.length)
@@ -31,7 +52,7 @@ const completedLists = computed(() => lists.value.filter(l => l.itemCount > 0 &&
 const totalItems = computed(() => lists.value.reduce((sum, l) => sum + l.itemCount, 0))
 
 // Delete handling
-const listToDelete = ref<ShoppingList | null>(null)
+const listToDelete = ref<ShoppingListDisplay | null>(null)
 const deleting = ref(false)
 const deleteModalOpen = computed({
   get: () => listToDelete.value !== null,
@@ -45,7 +66,7 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/shopping-lists/${listToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
+    await shoppingService.deleteShoppingList(listToDelete.value.id)
     listToDelete.value = null
     refresh()
   } catch (err) {
@@ -54,7 +75,7 @@ async function handleDelete(): Promise<void> {
   deleting.value = false
 }
 
-function confirmDelete(list: ShoppingList): void {
+function confirmDelete(list: ShoppingListDisplay): void {
   listToDelete.value = list
 }
 </script>
