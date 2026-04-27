@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RecipeWithRelations } from '~/types/recipe'
+import { transformToRecipeWithRelations } from '~/utils/transformCase'
 
 definePageMeta({
   layout: false, // Fullscreen mode
@@ -8,13 +8,19 @@ definePageMeta({
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const slug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
 
-const { data, status, error } = await useFetch<{ recipe: RecipeWithRelations }>(
-  `/api/recipes/${username.value}/${slug.value}`,
-  {
-    headers: getAuthHeaders(),
+// Services
+const recipeService = useRecipeService()
+
+const { data, status, error } = await useAsyncData(
+  `cook-${username.value}-${slug.value}`,
+  async () => {
+    const recipeData = await recipeService.getRecipeBySlug(username.value, slug.value)
+    if (!recipeData) {
+      throw createError({ statusCode: 404, message: 'Recipe not found' })
+    }
+    return { recipe: transformToRecipeWithRelations(recipeData) }
   }
 )
 

@@ -6,22 +6,33 @@ import {
   definePerson,
   defineAggregateRating,
 } from '@unhead/schema-org/vue'
+import { transformToRecipeWithRelations } from '~/utils/transformCase'
 
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const slug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
+const { user, getAuthHeaders } = useAuth()
 const { getRecipeEditUrl } = useRecipeUrl()
 
-interface RecipeResponse {
+// Services
+const recipeService = useRecipeService()
+const collectionService = useCollectionService()
+
+interface RecipeData {
   recipe: RecipeWithRelations
   isOwner: boolean
 }
 
-const { data, status, error } = await useFetch<RecipeResponse>(
-  `/api/recipes/${username.value}/${slug.value}`,
-  {
-    headers: getAuthHeaders(),
+const { data, status, error } = await useAsyncData<RecipeData>(
+  `recipe-${username.value}-${slug.value}`,
+  async () => {
+    const recipeData = await recipeService.getRecipeBySlug(username.value, slug.value)
+    if (!recipeData) {
+      throw createError({ statusCode: 404, message: 'Recipe not found' })
+    }
+    const recipe = transformToRecipeWithRelations(recipeData)
+    const isOwner = user.value?.id === recipeData.user_id
+    return { recipe, isOwner }
   }
 )
 
@@ -116,12 +127,8 @@ const deleting = ref(false)
 async function handleDelete(): Promise<void> {
   deleting.value = true
   try {
-    const response = await fetch(`/api/recipes/${username.value}/${slug.value}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
-    if (!response.ok) {
-      throw new Error('Failed to delete recipe')
+    if (recipe.value) {
+      await recipeService.deleteRecipe(recipe.value.id)
     }
     navigateTo('/browse')
   } catch (err) {
@@ -131,15 +138,16 @@ async function handleDelete(): Promise<void> {
 }
 
 // Collections
-interface Collection {
-  id: number
-  name: string
-}
-
-const { data: collectionsData } = await useFetch<{ collections: Collection[] }>(
-  '/api/collections',
-  {
-    headers: getAuthHeaders(),
+const { data: collectionsData } = await useAsyncData<{ collections: Array<{ id: number; name: string }> }>(
+  'user-collections',
+  async () => {
+    const { data } = await collectionService.getMyCollections()
+    return {
+      collections: (data || []).map((c) => ({
+        id: c.id,
+        name: c.name,
+      })),
+    }
   }
 )
 const collections = computed(() => collectionsData.value?.collections || [])
@@ -148,11 +156,9 @@ const addingToCollection = ref(false)
 async function addToCollection(collectionId: number): Promise<void> {
   addingToCollection.value = true
   try {
-    await $fetch(`/api/collections/by-id/${collectionId}/recipes`, {
-      method: 'POST',
-      body: { recipeId: recipe.value?.id },
-      headers: getAuthHeaders(),
-    })
+    if (recipe.value) {
+      await collectionService.addRecipeToCollection(collectionId, recipe.value.id)
+    }
     // Show success toast or notification
   } catch (err) {
     console.error('Failed to add to collection:', err)

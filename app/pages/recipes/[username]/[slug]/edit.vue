@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RecipeWithRelations } from '~/types/recipe'
 import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
+import { transformToRecipeWithRelations } from '~/utils/transformCase'
 
 definePageMeta({
   middleware: 'auth',
@@ -12,14 +13,21 @@ const slug = computed(() => route.params.slug as string)
 const { getAuthHeaders } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
 
+// Services
+const recipeService = useRecipeService()
+
 const {
   data,
   status,
   error: fetchError,
-} = await useFetch<{ recipe: RecipeWithRelations }>(
-  `/api/recipes/${username.value}/${slug.value}`,
-  {
-    headers: getAuthHeaders(),
+} = await useAsyncData(
+  `edit-${username.value}-${slug.value}`,
+  async () => {
+    const recipeData = await recipeService.getRecipeBySlug(username.value, slug.value)
+    if (!recipeData) {
+      throw createError({ statusCode: 404, message: 'Recipe not found' })
+    }
+    return { recipe: transformToRecipeWithRelations(recipeData) }
   }
 )
 
