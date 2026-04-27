@@ -12,8 +12,8 @@ useSeoMeta({
 })
 
 const route = useRoute()
-const { getAuthHeaders } = useAuth()
 const collectionService = useCollectionService()
+const recipeService = useRecipeService()
 const loading = ref(false)
 const error = ref('')
 const initialRecipeId = route.query.recipeId as string | undefined
@@ -93,16 +93,14 @@ async function handleRecipesSelected(recipeIds?: number[]): Promise<void> {
     if (tempRecipes.value.some(r => r.id === recipeId)) continue
 
     try {
-      const result = await $fetch<{ recipe: Recipe }>(`/api/recipes/by-id/${recipeId}`, {
-        headers: getAuthHeaders(),
-      })
-      if (result.recipe) {
+      const recipe = await recipeService.getRecipeById(recipeId)
+      if (recipe) {
         newRecipes.push({
-          id: result.recipe.id,
-          title: result.recipe.title,
-          coverPhoto: result.recipe.coverPhoto,
-          prepTime: result.recipe.prepTime,
-          cookTime: result.recipe.cookTime,
+          id: recipe.id,
+          title: recipe.title,
+          coverPhoto: recipe.cover_photo,
+          prepTime: recipe.prep_time,
+          cookTime: recipe.cook_time,
         })
       }
     } catch {
@@ -128,16 +126,14 @@ function handleReorderRecipes(recipes: Recipe[]): void {
 onMounted(async () => {
   if (initialRecipeId) {
     try {
-      const result = await $fetch<{ recipe: Recipe }>(`/api/recipes/by-id/${initialRecipeId}`, {
-        headers: getAuthHeaders(),
-      })
-      if (result.recipe) {
+      const recipe = await recipeService.getRecipeById(Number(initialRecipeId))
+      if (recipe) {
         tempRecipes.value = [{
-          id: result.recipe.id,
-          title: result.recipe.title,
-          coverPhoto: result.recipe.coverPhoto,
-          prepTime: result.recipe.prepTime,
-          cookTime: result.recipe.cookTime,
+          id: recipe.id,
+          title: recipe.title,
+          coverPhoto: recipe.cover_photo,
+          prepTime: recipe.prep_time,
+          cookTime: recipe.cook_time,
         }]
         editorRef.value?.updateRecipes(tempRecipes.value)
       }

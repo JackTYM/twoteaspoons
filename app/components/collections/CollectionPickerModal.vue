@@ -21,7 +21,6 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 
-const { getAuthHeaders } = useAuth()
 const collectionService = useCollectionService()
 
 // Collection loading state
@@ -50,15 +49,12 @@ async function refreshCollections(): Promise<void> {
   }
 }
 
-// Fetch which collections already have this recipe (still using API for now)
+// Fetch which collections already have this recipe
 async function refreshRecipeCollections(): Promise<void> {
   if (!props.recipeId) return
   try {
-    const data = await $fetch<{ collectionIds: number[] }>(
-      `/api/recipes/by-id/${props.recipeId}/collections`,
-      { headers: getAuthHeaders() }
-    )
-    recipeCollectionIds.value = data?.collectionIds ?? []
+    const ids = await collectionService.getCollectionsForRecipe(props.recipeId)
+    recipeCollectionIds.value = ids
   } catch (err) {
     console.error('Failed to fetch recipe collections:', err)
     recipeCollectionIds.value = []

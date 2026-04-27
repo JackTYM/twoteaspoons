@@ -7,6 +7,7 @@ import type {
   DbRecipeCategory,
   DbFavorite,
 } from '~/types/database'
+import { generateSlug as generateSlugFromTitle } from '~/utils/slug'
 
 // Types for recipe service
 export interface RecipeWithDetails {
@@ -41,7 +42,7 @@ export interface RecipeWithDetails {
 
 export interface RecipeCreateInput {
   title: string
-  slug: string
+  slug?: string
   description?: string | null
   cover_photo?: string | null
   prep_time?: number | null
@@ -57,12 +58,13 @@ export interface RecipeCreateInput {
     unit?: string | null
     item: string
     notes?: string | null
-    sort_order: number
+    sort_order?: number
   }>
   instructions: Array<{
-    step_number: number
+    step_number?: number
     content: string
     timer_minutes?: number | null
+    ingredient_ids?: string | null
   }>
   category_ids?: number[]
 }
@@ -351,12 +353,15 @@ export function useRecipeService() {
       throw new Error('Must be authenticated to create a recipe')
     }
 
+    // Generate slug from title if not provided
+    const slug = input.slug || generateSlugFromTitle(input.title)
+
     // Insert the recipe
     const { data: newRecipes, error: recipeError } = await from('recipes')
       .insert({
         user_id: user.value.id,
         title: input.title,
-        slug: input.slug,
+        slug,
         description: input.description ?? null,
         cover_photo: input.cover_photo ?? null,
         prep_time: input.prep_time ?? null,
@@ -382,13 +387,13 @@ export function useRecipeService() {
 
     // Insert ingredients
     if (input.ingredients.length > 0) {
-      const ingredientInserts = input.ingredients.map((ing) => ({
+      const ingredientInserts = input.ingredients.map((ing, index) => ({
         recipe_id: newRecipe.id,
         amount: ing.amount ?? null,
         unit: ing.unit ?? null,
         item: ing.item,
         notes: ing.notes ?? null,
-        sort_order: ing.sort_order,
+        sort_order: ing.sort_order ?? index,
       }))
 
       await from('ingredients').insert(ingredientInserts)
@@ -396,13 +401,13 @@ export function useRecipeService() {
 
     // Insert instructions
     if (input.instructions.length > 0) {
-      const instructionInserts = input.instructions.map((inst) => ({
+      const instructionInserts = input.instructions.map((inst, index) => ({
         recipe_id: newRecipe.id,
-        step_number: inst.step_number,
+        step_number: inst.step_number ?? index + 1,
         content: inst.content,
         timer_minutes: inst.timer_minutes ?? null,
         photo: null,
-        ingredient_ids: null,
+        ingredient_ids: inst.ingredient_ids ?? null,
       }))
 
       await from('instructions').insert(instructionInserts)
@@ -468,13 +473,13 @@ export function useRecipeService() {
 
       // Insert new ingredients
       if (input.ingredients.length > 0) {
-        const ingredientInserts = input.ingredients.map((ing) => ({
+        const ingredientInserts = input.ingredients.map((ing, index) => ({
           recipe_id: recipeId,
           amount: ing.amount ?? null,
           unit: ing.unit ?? null,
           item: ing.item,
           notes: ing.notes ?? null,
-          sort_order: ing.sort_order,
+          sort_order: ing.sort_order ?? index,
         }))
 
         await from('ingredients').insert(ingredientInserts)
@@ -488,13 +493,13 @@ export function useRecipeService() {
 
       // Insert new instructions
       if (input.instructions.length > 0) {
-        const instructionInserts = input.instructions.map((inst) => ({
+        const instructionInserts = input.instructions.map((inst, index) => ({
           recipe_id: recipeId,
-          step_number: inst.step_number,
+          step_number: inst.step_number ?? index + 1,
           content: inst.content,
           timer_minutes: inst.timer_minutes ?? null,
           photo: null,
-          ingredient_ids: null,
+          ingredient_ids: inst.ingredient_ids ?? null,
         }))
 
         await from('instructions').insert(instructionInserts)
@@ -716,6 +721,130 @@ export function useRecipeService() {
       )
   }
 
+  /**
+   * Get fork information for a recipe (parent and forks)
+   */
+  async function getForkInfo(recipeId: number): Promise<{
+    parent: { id: number; slug: string; title: string; author: { name: string; username: string | null } } | null
+    forks: Array<{ id: number; slug: string; title: string; author: { name: string; username: string | null } }>
+    forkCount: number
+  }> {
+    // Get the recipe to find its parent
+    const { data: recipes } = await from('recipes')
+      .select('forked_from_id')
+      .eq('id', recipeId)
+      .limit(1)
+
+    let parent = null
+    if (recipes && recipes.length > 0 && recipes[0].forked_from_id) {
+      const { data: parentRecipes } = await from('recipes')
+        .select('id, slug, title, user_id')
+        .eq('id', recipes[0].forked_from_id)
+        .limit(1)
+
+      if (parentRecipes && parentRecipes.length > 0) {
+        const parentRecipe = parentRecipes[0]
+        const { data: users } = await from('users')
+          .select('name, username')
+          .eq('id', parentRecipe.user_id)
+          .limit(1)
+
+        parent = {
+          id: parentRecipe.id,
+          slug: parentRecipe.slug,
+          title: parentRecipe.title,
+          author: {
+            name: users?.[0]?.name || 'Unknown',
+            username: users?.[0]?.username || null,
+          },
+        }
+      }
+    }
+
+    // Get forks of this recipe
+    const { data: forkRecipes } = await from('recipes')
+      .select('id, slug, title, user_id')
+      .eq('forked_from_id', recipeId)
+      .eq('is_published', true)
+      .limit(10)
+
+    const forks: Array<{ id: number; slug: string; title: string; author: { name: string; username: string | null } }> = []
+
+    if (forkRecipes && forkRecipes.length > 0) {
+      const userIds = [...new Set(forkRecipes.map((r: { user_id: string }) => r.user_id))]
+      const { data: users } = await from('users').select('id, name, username').in('id', userIds)
+      const userMap = new Map<string, { name: string; username: string | null }>()
+      for (const u of users || []) {
+        userMap.set(u.id, { name: u.name || 'Unknown', username: u.username })
+      }
+
+      for (const fork of forkRecipes) {
+        forks.push({
+          id: fork.id,
+          slug: fork.slug,
+          title: fork.title,
+          author: userMap.get(fork.user_id) || { name: 'Unknown', username: null },
+        })
+      }
+    }
+
+    // Get total fork count
+    const { data: countData } = await from('recipes')
+      .select('id')
+      .eq('forked_from_id', recipeId)
+      .eq('is_published', true)
+
+    return {
+      parent,
+      forks,
+      forkCount: countData?.length || 0,
+    }
+  }
+
+  /**
+   * Fork a recipe (create a copy owned by the current user)
+   */
+  async function forkRecipe(recipeId: number): Promise<RecipeWithDetails | null> {
+    if (!user.value) {
+      throw new Error('Must be authenticated to fork a recipe')
+    }
+
+    // Get the original recipe with all details
+    const original = await getRecipeById(recipeId)
+    if (!original) {
+      throw new Error('Recipe not found')
+    }
+
+    // Create the forked recipe
+    const forkedRecipe = await createRecipe({
+      title: original.title,
+      description: original.description,
+      cover_photo: original.cover_photo,
+      prep_time: original.prep_time,
+      cook_time: original.cook_time,
+      servings: original.servings,
+      is_published: true, // Forks default to published
+      source_url: original.source_url,
+      source_author: original.source_author,
+      source_site: original.source_site,
+      forked_from_id: original.id,
+      ingredients: original.ingredients.map(ing => ({
+        amount: ing.amount || '',
+        unit: ing.unit || '',
+        item: ing.item,
+        notes: ing.notes || '',
+      })),
+      instructions: original.instructions.map(inst => ({
+        content: inst.content,
+        timer_minutes: inst.timer_minutes,
+        ingredient_ids: inst.ingredient_ids,
+      })),
+      category_ids: original.categories.map(c => c.id),
+    })
+
+    return forkedRecipe
+  }
+
   return {
     getPublicRecipes,
     getRecipeBySlug,
@@ -727,5 +856,7 @@ export function useRecipeService() {
     unsaveRecipe,
     getMyRecipes,
     getSavedRecipes,
+    getForkInfo,
+    forkRecipe,
   }
 }

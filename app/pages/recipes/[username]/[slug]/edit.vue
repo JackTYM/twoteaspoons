@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { RecipeWithRelations } from '~/types/recipe'
 import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
 import { transformToRecipeWithRelations } from '~/utils/transformCase'
 
@@ -10,7 +9,6 @@ definePageMeta({
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const slug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
 
 // Services
@@ -71,22 +69,39 @@ interface FormData {
 }
 
 async function handleSubmit(formData: FormData): Promise<void> {
+  if (!recipe.value) return
+
   loading.value = true
   error.value = ''
 
   try {
-    const result = await $fetch<{
-      recipe: RecipeWithRelations
-      slugChanged: boolean
-      newSlug: string
-    }>(`/api/recipes/${username.value}/${slug.value}`, {
-      method: 'PUT',
-      body: formData,
-      headers: getAuthHeaders(),
+    const updatedRecipe = await recipeService.updateRecipe(recipe.value.id, {
+      title: formData.title,
+      description: formData.description || null,
+      cover_photo: formData.coverPhoto || null,
+      prep_time: formData.prepTime,
+      cook_time: formData.cookTime,
+      servings: formData.servings,
+      is_published: formData.isPublished,
+      source_url: formData.sourceUrl || null,
+      source_author: formData.sourceAuthor || null,
+      source_site: formData.sourceSite || null,
+      ingredients: formData.ingredients,
+      instructions: formData.instructions.map(inst => ({
+        content: inst.content,
+        timer_minutes: inst.timerMinutes,
+        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map(l => l.id)) : null,
+      })),
+      category_ids: [],
     })
 
-    // Navigate to the recipe page (which may have a new slug if title changed)
-    navigateTo(getRecipeUrl(result.recipe))
+    if (updatedRecipe) {
+      // Navigate to the recipe page (which may have a new slug if title changed)
+      navigateTo(getRecipeUrl({
+        slug: updatedRecipe.slug,
+        author: updatedRecipe.author,
+      }))
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to update recipe'
   }

@@ -563,6 +563,36 @@ export function useCollectionService() {
     }
   }
 
+  /**
+   * Get collection IDs that contain a specific recipe
+   */
+  async function getCollectionsForRecipe(recipeId: number): Promise<number[]> {
+    if (!user.value?.id) {
+      return []
+    }
+
+    try {
+      // Get user's collections that contain this recipe
+      const { data: collectionRecipes } = await from('collection_recipes')
+        .select('collection_id, collections!inner(user_id)')
+        .eq('recipe_id', recipeId)
+
+      if (!collectionRecipes) {
+        return []
+      }
+
+      // Filter to only collections owned by the current user
+      return collectionRecipes
+        .filter((cr: { collection_id: number; collections: { user_id: string } }) =>
+          cr.collections?.user_id === user.value?.id
+        )
+        .map((cr: { collection_id: number }) => cr.collection_id)
+    } catch (error) {
+      console.error('Failed to get collections for recipe:', error)
+      return []
+    }
+  }
+
   return {
     getMyCollections,
     getCollectionBySlug,
@@ -573,5 +603,6 @@ export function useCollectionService() {
     addRecipeToCollection,
     removeRecipeFromCollection,
     reorderCollectionRecipes,
+    getCollectionsForRecipe,
   }
 }

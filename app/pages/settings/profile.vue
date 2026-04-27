@@ -8,6 +8,7 @@ useSeoMeta({
 })
 
 const { user, getAuthHeaders, refreshUserProfile } = useAuth()
+const userService = useUserService()
 
 // Form state
 const name = ref(user.value?.name || '')
@@ -43,14 +44,10 @@ async function saveProfile(): Promise<void> {
   success.value = ''
 
   try {
-    await $fetch('/api/users/me', {
-      method: 'PUT',
-      body: {
-        name: name.value,
-        username: username.value,
-        bio: bio.value,
-      },
-      headers: getAuthHeaders(),
+    await userService.updateMyProfile({
+      name: name.value,
+      username: username.value,
+      bio: bio.value,
     })
 
     success.value = 'Profile updated successfully'
@@ -61,8 +58,7 @@ async function saveProfile(): Promise<void> {
       success.value = ''
     }, 3000)
   } catch (err: unknown) {
-    const fetchError = err as { data?: { message?: string } }
-    error.value = fetchError.data?.message || 'Failed to update profile'
+    error.value = err instanceof Error ? err.message : 'Failed to update profile'
   } finally {
     saving.value = false
   }

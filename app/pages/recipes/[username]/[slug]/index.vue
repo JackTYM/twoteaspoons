@@ -11,7 +11,7 @@ import { transformToRecipeWithRelations } from '~/utils/transformCase'
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const slug = computed(() => route.params.slug as string)
-const { user, getAuthHeaders } = useAuth()
+const { user } = useAuth()
 const { getRecipeEditUrl } = useRecipeUrl()
 
 // Services
@@ -167,29 +167,16 @@ async function addToCollection(collectionId: number): Promise<void> {
 }
 
 // Forking
-interface ForkInfo {
-  parent: {
-    id: number
-    slug: string
-    title: string
-    author: { name: string; username: string | null }
-  } | null
-  forks: Array<{
-    id: number
-    slug: string
-    title: string
-    author: { name: string; username: string | null }
-  }>
-  forkCount: number
-}
-
-const { data: forksData } = await useFetch<ForkInfo>(
-  `/api/recipes/${username.value}/${slug.value}/forks`,
-  {
-    headers: getAuthHeaders(),
-  }
+// Fork info - fetched using service
+const { data: forkInfoData } = await useAsyncData(
+  `forks-${username.value}-${slug.value}`,
+  async () => {
+    if (!recipe.value) return null
+    return recipeService.getForkInfo(recipe.value.id)
+  },
+  { watch: [recipe] }
 )
-const forkInfo = computed(() => forksData.value)
+const forkInfo = computed(() => forkInfoData.value)
 
 const forking = ref(false)
 
@@ -197,17 +184,18 @@ const forking = ref(false)
 const ingredientScale = ref(1)
 
 async function handleFork(): Promise<void> {
+  if (!recipe.value) return
+
   forking.value = true
   try {
-    const result = await $fetch<{ recipe: RecipeWithRelations }>(
-      `/api/recipes/${username.value}/${slug.value}/fork`,
-      {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      }
-    )
-    // Navigate to the edit page of the forked recipe
-    navigateTo(getRecipeEditUrl(result.recipe))
+    const forkedRecipe = await recipeService.forkRecipe(recipe.value.id)
+    if (forkedRecipe) {
+      // Navigate to the edit page of the forked recipe
+      navigateTo(getRecipeEditUrl({
+        slug: forkedRecipe.slug,
+        author: forkedRecipe.author,
+      }))
+    }
   } catch (err) {
     console.error('Failed to fork recipe:', err)
   }
@@ -316,8 +304,8 @@ async function handleFork(): Promise<void> {
           class="mt-12 pt-8 border-t border-neutral-200 dark:border-neutral-700"
         >
           <RecipeComments
-            :recipe-username="username"
-            :recipe-slug="slug"
+            v-if="recipe"
+            :recipe-id="recipe.id"
           />
         </div>
       </div>

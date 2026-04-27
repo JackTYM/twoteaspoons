@@ -10,16 +10,11 @@ useSeoMeta({
   description: 'Create a new recipe',
 })
 
-const { getAuthHeaders } = useAuth()
+const recipeService = useRecipeService()
+const { user } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
 const loading = ref(false)
 const error = ref('')
-
-interface RecipeResponse {
-  id: number
-  slug: string
-  author?: { username: string | null } | null
-}
 
 interface IngredientLink {
   id: number
@@ -47,12 +42,31 @@ async function handleSubmit(data: FormData): Promise<void> {
   error.value = ''
 
   try {
-    const result = await $fetch<{ recipe: RecipeResponse }>('/api/recipes', {
-      method: 'POST',
-      body: data,
-      headers: getAuthHeaders(),
+    const recipe = await recipeService.createRecipe({
+      title: data.title,
+      description: data.description || null,
+      cover_photo: data.coverPhoto || null,
+      prep_time: data.prepTime,
+      cook_time: data.cookTime,
+      servings: data.servings,
+      is_published: data.isPublished,
+      source_url: data.sourceUrl || null,
+      source_author: data.sourceAuthor || null,
+      source_site: data.sourceSite || null,
+      ingredients: data.ingredients,
+      instructions: data.instructions.map(inst => ({
+        content: inst.content,
+        timer_minutes: inst.timerMinutes,
+        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map(l => l.id)) : null,
+      })),
+      category_ids: [],
     })
-    navigateTo(getRecipeUrl(result.recipe))
+    if (recipe) {
+      navigateTo(getRecipeUrl({
+        slug: recipe.slug,
+        author: { username: user.value?.username || null },
+      }))
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to create recipe'
   }

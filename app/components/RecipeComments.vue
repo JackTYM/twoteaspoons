@@ -1,14 +1,7 @@
 <script setup lang="ts">
 const props = defineProps<{
-  recipeUsername: string
-  recipeSlug: string
+  recipeId: number
 }>()
-
-interface User {
-  id: string
-  name: string
-  avatar?: string
-}
 
 interface Comment {
   id: number
@@ -17,28 +10,54 @@ interface Comment {
   tasteRating: number | null
   difficultyRating: number | null
   createdAt: string
-  user: User
-}
-
-interface CommentsResponse {
-  comments: Comment[]
-  stats: {
-    totalComments: number
-    avgTasteRating: number | null
-    avgDifficultyRating: number | null
-    tasteRatingCount: number
-    difficultyRatingCount: number
+  user: {
+    id: string
+    name: string
+    avatar?: string
   }
 }
 
-const { user, isAuthenticated, getAuthHeaders } = useAuth()
+interface CommentStats {
+  totalComments: number
+  avgTasteRating: number | null
+  avgDifficultyRating: number | null
+  tasteRatingCount: number
+  difficultyRatingCount: number
+}
 
-const apiBasePath = computed(() => `/api/recipes/${props.recipeUsername}/${props.recipeSlug}`)
+const { user, isAuthenticated } = useAuth()
+const commentService = useCommentService()
 
-const { data, status, refresh } = await useFetch<CommentsResponse>(
-  () => `${apiBasePath.value}/comments`,
-  {
-    headers: getAuthHeaders(),
+// Fetch comments using service
+const { data, status, refresh } = await useAsyncData(
+  `comments-${props.recipeId}`,
+  async () => {
+    const commentsData = await commentService.getRecipeComments(props.recipeId)
+    // Transform snake_case to camelCase for template
+    const comments: Comment[] = commentsData.map(c => ({
+      id: c.id,
+      content: c.content,
+      photo: c.photo,
+      tasteRating: c.taste_rating,
+      difficultyRating: c.difficulty_rating,
+      createdAt: c.created_at,
+      user: {
+        id: c.user?.id || '',
+        name: c.user?.name || 'Unknown',
+        avatar: c.user?.avatar || undefined,
+      },
+    }))
+    // Calculate stats from comments
+    const tasteRatings = comments.filter(c => c.tasteRating !== null).map(c => c.tasteRating!)
+    const difficultyRatings = comments.filter(c => c.difficultyRating !== null).map(c => c.difficultyRating!)
+    const stats: CommentStats = {
+      totalComments: comments.length,
+      avgTasteRating: tasteRatings.length > 0 ? tasteRatings.reduce((a, b) => a + b, 0) / tasteRatings.length : null,
+      avgDifficultyRating: difficultyRatings.length > 0 ? difficultyRatings.reduce((a, b) => a + b, 0) / difficultyRatings.length : null,
+      tasteRatingCount: tasteRatings.length,
+      difficultyRatingCount: difficultyRatings.length,
+    }
+    return { comments, stats }
   }
 )
 const comments = computed(() => data.value?.comments || [])
@@ -58,14 +77,11 @@ async function submitComment(): Promise<void> {
 
   submitting.value = true
   try {
-    await $fetch(`${apiBasePath.value}/comments`, {
-      method: 'POST',
-      body: {
-        content: newComment.content.trim(),
-        tasteRating: newComment.tasteRating || undefined,
-        difficultyRating: newComment.difficultyRating || undefined,
-      },
-      headers: getAuthHeaders(),
+    await commentService.createComment({
+      recipe_id: props.recipeId,
+      content: newComment.content.trim(),
+      taste_rating: newComment.tasteRating || null,
+      difficulty_rating: newComment.difficultyRating || null,
     })
     newComment.content = ''
     newComment.tasteRating = 0
@@ -87,10 +103,7 @@ async function deleteComment(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`${apiBasePath.value}/comments/${commentToDelete.value.id}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
+    await commentService.deleteComment(commentToDelete.value.id)
     commentToDelete.value = null
     refresh()
   } catch (err) {
