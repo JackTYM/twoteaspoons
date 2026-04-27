@@ -1,13 +1,18 @@
 <script setup lang="ts">
+import { transformRecipeToUI } from '~/utils/transformCase'
+
 useSeoMeta({
   title: 'TwoTeaspoons - Recipes Worth Sharing',
   description: 'Discover and share delicious recipes with home cooks',
 })
 
-const { isAuthenticated, isAnonymous, getAuthHeaders } = useAuth()
+const { isAuthenticated, isAnonymous } = useAuth()
 
 // User needs a real (non-anonymous) account for protected features
 const isRealUser = computed(() => isAuthenticated.value && !isAnonymous.value)
+
+// Services
+const recipeService = useRecipeService()
 
 // Search input for hero section
 const searchQuery = ref('')
@@ -21,27 +26,13 @@ function handleSearch(): void {
 }
 
 // Fetch featured recipes (limited set for homepage)
-interface RecipePreview {
-  id: number
-  slug: string
-  title: string
-  description: string | null
-  coverPhoto: string | null
-  prepTime: number | null
-  cookTime: number | null
-  servings: number | null
-  saveCount: number | null
-  isSaved?: boolean
-  createdAt: string
-  author: { name: string; username: string | null } | null
-}
-
-const { data: recipesData, status } = await useFetch<{ recipes: RecipePreview[] }>('/api/recipes', {
-  query: {
-    public: true,
-  },
-  headers: getAuthHeaders(),
-})
+const { data: recipesData, status } = await useAsyncData(
+  'home-recipes',
+  async () => {
+    const recipes = await recipeService.getPublicRecipes()
+    return { recipes: recipes.map(transformRecipeToUI) }
+  }
+)
 
 // Show only the first 9 featured recipes
 const featuredRecipes = computed(() => {
@@ -99,15 +90,9 @@ async function handleSave(recipeId: number): Promise<void> {
 
   try {
     if (wasSaved) {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.unsaveRecipe(recipeId)
     } else {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.saveRecipe(recipeId)
     }
   } catch (err) {
     // Revert on error - replace entire array to trigger reactivity

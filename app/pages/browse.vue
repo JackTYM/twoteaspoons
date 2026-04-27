@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SortOption } from '~/components/browse/SortDropdown.vue'
+import { transformRecipeToUI, transformCategoryGroupsToUI, type UIRecipe } from '~/utils/transformCase'
 
 useSeoMeta({
   title: 'Browse Recipes',
@@ -8,7 +9,11 @@ useSeoMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { isAuthenticated, isAnonymous, getAuthHeaders } = useAuth()
+const { isAuthenticated, isAnonymous } = useAuth()
+
+// Services
+const recipeService = useRecipeService()
+const categoryService = useCategoryService()
 
 // User needs a real (non-anonymous) account for protected features
 const isRealUser = computed(() => isAuthenticated.value && !isAnonymous.value)
@@ -90,9 +95,13 @@ watch([() => filters.value.categories, searchQuery], () => {
 const showFilterDrawer = ref(false)
 
 // Fetch category names for display
-const { data: categoriesData } = await useFetch<{
-  groups: Array<{ type: string; label: string; categories: Array<{ id: number; name: string; slug: string }> }>
-}>('/api/categories')
+const { data: categoriesData } = await useAsyncData(
+  'browse-categories',
+  async () => {
+    const groups = await categoryService.getCategoriesGrouped()
+    return { groups: transformCategoryGroupsToUI(groups) }
+  }
+)
 
 // Map slug to name for display
 const categoryNameMap = computed(() => {
@@ -174,48 +183,20 @@ const hasActiveFilters = computed(() =>
   searchQuery.value !== ''
 )
 
-// Fetch recipes
-interface RecipeCategory {
-  id: number
-  name: string
-  slug: string
-  icon: string | null
-  type: string
-}
-
-interface RecipePreview {
-  id: number
-  slug: string
-  title: string
-  description: string | null
-  coverPhoto: string | null
-  prepTime: number | null
-  cookTime: number | null
-  servings: number | null
-  avgTasteRating: string | null
-  ratingCount: number | null
-  saveCount: number | null
-  isSaved?: boolean
-  createdAt: string
-  author: { name: string; username: string | null } | null
-  categories?: RecipeCategory[]
-}
-
-// Server-side category filter (passed to API)
-const categoryQueryParam = computed(() =>
-  filters.value.categories.length > 0 ? filters.value.categories.join(',') : undefined
+// Fetch recipes using service
+const { data: recipesData, status } = await useAsyncData(
+  'browse-recipes',
+  async () => {
+    const categorySlugs = filters.value.categories.length > 0 ? filters.value.categories : undefined
+    const recipes = await recipeService.getPublicRecipes({ categorySlugs })
+    return { recipes: recipes.map(transformRecipeToUI) }
+  },
+  {
+    watch: [() => filters.value.categories],
+  }
 )
 
-const { data: recipesData, status } = await useFetch<{ recipes: RecipePreview[] }>('/api/recipes', {
-  query: {
-    public: true,
-    categories: categoryQueryParam,
-  },
-  headers: getAuthHeaders(),
-  watch: [categoryQueryParam], // Re-fetch when categories change
-})
-
-const allRecipes = computed(() => recipesData.value?.recipes || [])
+const allRecipes = computed(() => recipesData.value?.recipes || [] as UIRecipe[])
 
 // Computed: filtered and sorted recipes
 const recipes = computed(() => {
@@ -340,15 +321,9 @@ async function handleSave(recipeId: number): Promise<void> {
 
   try {
     if (wasSaved) {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.unsaveRecipe(recipeId)
     } else {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.saveRecipe(recipeId)
     }
   } catch (err) {
     // Revert on error - replace entire array to trigger reactivity

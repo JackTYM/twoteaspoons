@@ -41,6 +41,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // Auto-import services as composables
+  imports: {
+    dirs: ['~/services'],
+  },
+
   modules: ['@nuxt/ui', '@nuxtjs/seo', '@nuxt/eslint'],
 
   // Disable OG Image generation (requires Puppeteer, not compatible with Cloudflare Workers)
