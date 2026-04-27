@@ -1,6 +1,4 @@
 <script setup lang="ts">
-const { getAuthHeaders } = useAuth()
-
 interface RecipePreview {
   id: number
   title: string
@@ -21,9 +19,9 @@ interface MealPlan {
   recipe: RecipePreview
 }
 
-interface MealPlanResponse {
-  mealPlans: MealPlan[]
-}
+const { getAuthHeaders } = useAuth()
+const mealPlanService = useMealPlanService()
+const recipeService = useRecipeService()
 
 // Week navigation
 const currentWeekStart = ref(getStartOfWeek(new Date()))
@@ -54,16 +52,52 @@ const weekDates = computed(() => {
   return dates
 })
 
-const weekStartParam = computed(() => currentWeekStart.value.toISOString())
-const weekEndParam = computed(() => getEndOfWeek(currentWeekStart.value).toISOString())
+const weekStartParam = computed(() => currentWeekStart.value.toISOString().split('T')[0])
+const weekEndParam = computed(() => getEndOfWeek(currentWeekStart.value).toISOString().split('T')[0])
 
-const { data, refresh, status } = await useFetch<MealPlanResponse>('/api/meal-plans', {
-  query: {
-    start: weekStartParam,
-    end: weekEndParam,
+const { data, refresh, status } = await useAsyncData(
+  'meal-plans',
+  async () => {
+    const start = weekStartParam.value ?? ''
+    const end = weekEndParam.value ?? ''
+    if (!start || !end) {
+      return { mealPlans: [] as MealPlan[] }
+    }
+    const result = await mealPlanService.getMealPlans(start, end)
+    if (result.error) {
+      console.error('Failed to fetch meal plans:', result.error)
+      return { mealPlans: [] as MealPlan[] }
+    }
+    // Transform snake_case to camelCase for compatibility with existing template
+    const mealPlans: MealPlan[] = (result.data || []).map(mp => ({
+      id: mp.id,
+      recipeId: mp.recipe_id,
+      date: mp.date,
+      mealType: mp.meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+      servings: mp.servings,
+      recipe: mp.recipe ? {
+        id: mp.recipe.id,
+        title: mp.recipe.title,
+        slug: mp.recipe.slug,
+        coverPhoto: mp.recipe.cover_photo,
+        prepTime: mp.recipe.prep_time,
+        cookTime: mp.recipe.cook_time,
+        servings: mp.recipe.servings,
+        author: mp.recipe.author,
+      } : {
+        id: 0,
+        title: 'Unknown Recipe',
+        slug: '',
+        coverPhoto: null,
+        prepTime: null,
+        cookTime: null,
+        servings: null,
+      },
+    }))
+    return { mealPlans }
   },
-  headers: getAuthHeaders(),
-})
+  { watch: [weekStartParam] }
+)
 
 const mealPlans = computed(() => data.value?.mealPlans || [])
 
@@ -91,7 +125,10 @@ const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 // Delete meal plan
 async function removeMealPlan(planId: number): Promise<void> {
   try {
-    await $fetch(`/api/meal-plans/${planId}`, { method: 'DELETE', headers: getAuthHeaders() })
+    const { error } = await mealPlanService.deleteMealPlan(planId)
+    if (error) {
+      throw error
+    }
     refresh()
   } catch (err) {
     console.error('Failed to remove meal plan:', err)
@@ -104,8 +141,20 @@ const selectedDate = ref<Date | null>(null)
 const selectedMealType = ref<string>('dinner')
 const addingPlan = ref(false)
 
-const { data: recipesData } = await useFetch<{ recipes: RecipePreview[] }>('/api/recipes', {
-  headers: getAuthHeaders(),
+const { data: recipesData } = await useAsyncData('public-recipes-for-meal-plan', async () => {
+  const recipes = await recipeService.getPublicRecipes()
+  // Transform snake_case to camelCase for compatibility with existing template
+  const transformedRecipes: RecipePreview[] = recipes.map(r => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    coverPhoto: r.cover_photo,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+    servings: r.servings,
+    author: r.author ? { username: r.author.username } : null,
+  }))
+  return { recipes: transformedRecipes }
 })
 const recipes = computed(() => recipesData.value?.recipes || [])
 
@@ -116,19 +165,21 @@ function openAddModal(date: Date, mealType: string): void {
 }
 
 async function addMealPlan(recipeId: number): Promise<void> {
-  if (!selectedDate.value) return
+  const date = selectedDate.value
+  if (!date) return
 
   addingPlan.value = true
   try {
-    await $fetch('/api/meal-plans', {
-      method: 'POST',
-      body: {
-        recipeId,
-        date: selectedDate.value.toISOString(),
-        mealType: selectedMealType.value,
-      },
-      headers: getAuthHeaders(),
+    const dateStr = date.toISOString().split('T')[0]
+    if (!dateStr) return
+    const { error } = await mealPlanService.createMealPlan({
+      recipe_id: recipeId,
+      date: dateStr,
+      meal_type: selectedMealType.value as 'breakfast' | 'lunch' | 'dinner' | 'snack',
     })
+    if (error) {
+      throw error
+    }
     showAddModal.value = false
     refresh()
   } catch (err) {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Custom interface matching the /api/recipes/mine response
+// Custom interface matching the component's expected recipe shape
 interface MyRecipe {
   id: number
   title: string
@@ -20,10 +20,31 @@ interface MyRecipe {
   } | null
 }
 
-const { getAuthHeaders } = useAuth()
+const recipeService = useRecipeService()
 
-const { data, status } = await useFetch<{ recipes: MyRecipe[] }>('/api/recipes/mine', {
-  headers: getAuthHeaders(),
+const { data, status } = await useAsyncData('my-recipes', async () => {
+  const recipes = await recipeService.getMyRecipes()
+  // Transform snake_case to camelCase for compatibility with existing template
+  const transformedRecipes: MyRecipe[] = recipes.map(r => ({
+    id: r.id,
+    title: r.title,
+    slug: r.slug,
+    description: r.description,
+    coverPhoto: r.cover_photo,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+    servings: r.servings,
+    isPublished: r.is_published,
+    saveCount: r.save_count,
+    isSaved: r.is_saved ?? false,
+    createdAt: r.created_at,
+    author: r.author ? {
+      id: r.author.id,
+      username: r.author.username,
+      name: r.author.name,
+    } : null,
+  }))
+  return { recipes: transformedRecipes }
 })
 
 const recipes = computed(() => data.value?.recipes || [])
@@ -127,18 +148,20 @@ const filteredRecipes = computed(() => {
   }
 
   // Time filter
-  if (filters.value.maxTime) {
+  const maxTime = filters.value.maxTime
+  if (maxTime) {
     result = result.filter(r => {
       const total = (r.prepTime || 0) + (r.cookTime || 0)
-      return total <= filters.value.maxTime!
+      return total <= maxTime
     })
   }
 
   // Servings filter
-  if (filters.value.minServings !== null) {
+  const minServings = filters.value.minServings
+  if (minServings !== null) {
     result = result.filter(r => {
       if (!r.servings) return false
-      if (r.servings < filters.value.minServings!) return false
+      if (r.servings < minServings) return false
       if (filters.value.maxServings && r.servings > filters.value.maxServings) return false
       return true
     })
@@ -200,15 +223,9 @@ async function handleSave(recipeId: number): Promise<void> {
 
   try {
     if (wasSaved) {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.unsaveRecipe(recipeId)
     } else {
-      await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      })
+      await recipeService.saveRecipe(recipeId)
     }
   } catch (err) {
     // Revert on error

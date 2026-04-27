@@ -1,6 +1,4 @@
 <script setup lang="ts">
-const { getAuthHeaders } = useAuth()
-
 interface ShoppingList {
   id: number
   name: string
@@ -10,8 +8,25 @@ interface ShoppingList {
   checkedCount: number
 }
 
-const { data, status, refresh } = await useFetch<{ lists: ShoppingList[] }>('/api/shopping-lists', {
-  headers: getAuthHeaders(),
+const shoppingListService = useShoppingListService()
+
+const { data, status, refresh } = await useAsyncData('my-shopping-lists', async () => {
+  try {
+    const lists = await shoppingListService.getShoppingLists()
+    // Transform snake_case to camelCase for compatibility with existing template
+    const transformedLists: ShoppingList[] = lists.map(l => ({
+      id: l.id,
+      name: l.name,
+      slug: l.slug,
+      createdAt: l.created_at,
+      itemCount: l.total_count,
+      checkedCount: l.checked_count,
+    }))
+    return { lists: transformedLists }
+  } catch (error) {
+    console.error('Failed to fetch shopping lists:', error)
+    return { lists: [] as ShoppingList[] }
+  }
 })
 
 const lists = computed(() => data.value?.lists || [])
@@ -36,7 +51,7 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/shopping-lists/${listToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
+    await shoppingListService.deleteShoppingList(listToDelete.value.id)
     listToDelete.value = null
     refresh()
   } catch (err) {

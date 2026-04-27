@@ -3,8 +3,6 @@ defineEmits<{
   switchTab: [tab: string]
 }>()
 
-const { getAuthHeaders } = useAuth()
-
 interface SavedRecipe {
   id: number
   slug: string
@@ -19,8 +17,27 @@ interface SavedRecipe {
   author: { name: string; username: string | null } | null
 }
 
-const { data, status } = await useFetch<{ recipes: SavedRecipe[] }>('/api/saves', {
-  headers: getAuthHeaders(),
+const recipeService = useRecipeService()
+
+const { data, status } = await useAsyncData('saved-recipes', async () => {
+  const recipes = await recipeService.getSavedRecipes()
+  // Transform snake_case to camelCase for compatibility with existing template
+  const transformedRecipes: SavedRecipe[] = recipes.map(r => ({
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    coverPhoto: r.cover_photo,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+    servings: r.servings,
+    saveCount: r.save_count,
+    // For saved recipes, we can use created_at as savedAt since getSavedRecipes
+    // returns them in order of when they were saved
+    savedAt: r.created_at,
+    author: r.author ? { name: r.author.name, username: r.author.username } : null,
+  }))
+  return { recipes: transformedRecipes }
 })
 
 const savedRecipes = computed(() => data.value?.recipes || [])
@@ -112,10 +129,7 @@ async function handleUnsave(recipeId: number): Promise<void> {
   data.value.recipes.splice(recipeIndex, 1)
 
   try {
-    await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
+    await recipeService.unsaveRecipe(recipeId)
   } catch (err) {
     // Revert on error - add back to same position
     data.value.recipes.splice(recipeIndex, 0, removedRecipe)

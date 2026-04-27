@@ -1,20 +1,18 @@
 <script setup lang="ts">
-const { getAuthHeaders } = useAuth()
+import type { DbCollection } from '~/types/database'
 
-interface Collection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-  createdAt: string
-  recipeCount: number
-  previewPhotos?: string[]
-}
+// Matches the CollectionCard prop interface
+type Collection = DbCollection & { recipe_count: number }
 
-const { data, status, refresh } = await useFetch<{ collections: Collection[] }>('/api/collections', {
-  headers: getAuthHeaders(),
+const collectionService = useCollectionService()
+
+const { data, status, refresh } = await useAsyncData('my-collections', async () => {
+  const result = await collectionService.getMyCollections()
+  if (result.error) {
+    console.error('Failed to fetch collections:', result.error)
+    return { collections: [] as Collection[] }
+  }
+  return { collections: result.data || [] }
 })
 
 const collections = computed(() => data.value?.collections || [])
@@ -34,7 +32,10 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/collections/by-id/${collectionToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
+    const { error } = await collectionService.deleteCollection(collectionToDelete.value.id)
+    if (error) {
+      throw error
+    }
     collectionToDelete.value = null
     refresh()
   } catch (err) {
@@ -100,7 +101,7 @@ function confirmDelete(collection: Collection): void {
         </div>
         <div>
           <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
-            {{ collections.reduce((sum, c) => sum + c.recipeCount, 0) }}
+            {{ collections.reduce((sum, c) => sum + c.recipe_count, 0) }}
           </p>
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
             Total Recipes
