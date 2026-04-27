@@ -114,7 +114,7 @@ export function useAuth(): UseAuthReturn {
   // Sign in with email/password
   async function signIn(email: string, password: string): Promise<{ error?: string }> {
     try {
-      const client = useNeonClient()
+      const client = await useNeonClient()
       const result = await client.auth.signIn.email({
         email,
         password,
@@ -164,7 +164,7 @@ export function useAuth(): UseAuthReturn {
   // Sign up with email/password
   async function signUp(email: string, password: string, name?: string): Promise<{ error?: string }> {
     try {
-      const client = useNeonClient()
+      const client = await useNeonClient()
       const result = await client.auth.signUp.email({
         email,
         password,
@@ -214,7 +214,7 @@ export function useAuth(): UseAuthReturn {
 
   // Sign in with OAuth provider
   async function signInWithOAuth(provider: 'google' | 'github'): Promise<void> {
-    const client = useNeonClient()
+    const client = await useNeonClient()
     await client.auth.signIn.social({
       provider,
       callbackURL: '/',
@@ -228,7 +228,7 @@ export function useAuth(): UseAuthReturn {
     }
 
     try {
-      const client = useNeonClient()
+      const client = await useNeonClient()
       const result = await client.auth.linkAccount.email({
         email,
         password,
@@ -297,7 +297,7 @@ export function useAuth(): UseAuthReturn {
   // Sign out
   async function signOut(): Promise<void> {
     try {
-      const client = useNeonClient()
+      const client = await useNeonClient()
       await client.auth.signOut()
     } catch {
       // Ignore errors from SDK signOut

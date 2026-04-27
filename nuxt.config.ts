@@ -6,6 +6,22 @@ export default defineNuxtConfig({
   // Build for Cloudflare Pages
   nitro: {
     preset: 'cloudflare-pages',
+    // Don't bundle neon-js in server - it's client-only and has global scope async
+    externals: {
+      inline: [],
+    },
+  },
+
+  // Prevent @neondatabase/neon-js from being SSR bundled - it does async I/O at module load
+  vite: {
+    optimizeDeps: {
+      exclude: ['@neondatabase/neon-js'],
+    },
+    ssr: {
+      // These packages should not be bundled for SSR
+      noExternal: [],
+      external: ['@neondatabase/neon-js'],
+    },
   },
 
   // Site configuration for Nuxt SEO

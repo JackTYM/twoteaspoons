@@ -14,41 +14,74 @@ interface SingleResult<T> {
   error: Error | null
 }
 
+// Type for the neon client
+type NeonClient = Awaited<ReturnType<typeof useNeonClient>>
+
+// Cached client promise to avoid multiple initializations
+let clientPromise: Promise<NeonClient> | null = null
+
+async function getClient(): Promise<NeonClient> {
+  if (!clientPromise) {
+    clientPromise = useNeonClient()
+  }
+  return clientPromise
+}
+
 /**
  * Composable for accessing the Neon Data API
  *
  * Provides typed access to database tables via the PostgREST query builder.
  * All queries automatically include the user's auth token for RLS.
+ * The client is lazily initialized on first query.
  *
  * @example
  * ```typescript
- * const { from, client } = useNeonData()
+ * const { from } = useNeonData()
  *
  * // Select all published recipes
  * const { data, error } = await from('recipes')
  *   .select('*')
  *   .eq('is_published', true)
- *
- * // Insert a new recipe
- * const { data: newRecipe, error } = await from('recipes')
- *   .insert({ title: 'My Recipe', user_id: userId })
- *   .select()
- *   .single()
  * ```
  */
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useNeonData() {
-  const client = useNeonClient()
-
   /**
    * Start a query on a table
    *
-   * Returns a PostgREST query builder with full filtering/ordering support.
-   * Results use snake_case column names matching the database.
+   * Returns a proxy that lazily initializes the client and forwards all method calls.
    */
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   function from<T extends TableName>(table: T) {
-    return client.from(table) as ReturnType<typeof client.from> & {
+    // Create a chainable proxy that lazily loads the client
+    const createProxy = (pendingOps: Array<{ method: string; args: unknown[] }> = []): unknown => {
+      return new Proxy({} as Record<string, unknown>, {
+        get(_, method: string) {
+          if (method === 'then') {
+            // When awaited, execute the chain
+            return async (resolve: (value: unknown) => void, reject: (reason: unknown) => void) => {
+              try {
+                const client = await getClient()
+                let result: unknown = client.from(table)
+                for (const op of pendingOps) {
+                  const fn = (result as Record<string, ((...args: unknown[]) => unknown) | undefined>)[op.method]
+                if (fn) result = fn.call(result, ...op.args)
+                }
+                const finalResult = await result
+                resolve(finalResult)
+              } catch (error) {
+                reject(error)
+              }
+            }
+          }
+          // Return a function that adds to the chain
+          return (...args: unknown[]) => {
+            return createProxy([...pendingOps, { method, args }])
+          }
+        },
+      })
+    }
+    return createProxy() as ReturnType<NeonClient['from']> & {
       select: (
         columns?: string
       ) => Promise<QueryResult<TableRow<T>>> & {
@@ -74,6 +107,6 @@ export function useNeonData() {
 
   return {
     from,
-    client,
+    getClient,
   }
 }

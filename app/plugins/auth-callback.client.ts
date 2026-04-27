@@ -15,7 +15,7 @@ export default defineNuxtPlugin(async () => {
 
   // Process the OAuth callback
   try {
-    const client = useNeonClient()
+    const client = await useNeonClient()
 
     // Get the session - the Neon client should automatically process the verifier
     // when we call getSession with the verifier in the URL
