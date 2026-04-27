@@ -9,7 +9,6 @@ useSeoMeta({
 
 const { getAuthHeaders } = useAuth()
 const exportingJson = ref(false)
-const exportingPdf = ref(false)
 const selectedFormat = ref('full')
 
 interface FormatOption {
@@ -53,32 +52,10 @@ async function downloadJSON(): Promise<void> {
   exportingJson.value = false
 }
 
-async function downloadPDF(): Promise<void> {
-  exportingPdf.value = true
-  try {
-    // Use native fetch for binary response to avoid $fetch type issues
-    const response = await fetch(`/api/export/recipes/pdf?format=${selectedFormat.value}`, {
-      headers: getAuthHeaders(),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Export failed: ${response.statusText}`)
-    }
-
-    // Create Blob from response
-    const blob = await response.blob()
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `twoteaspoons-cookbook-${selectedFormat.value}-${new Date().toISOString().split('T')[0]}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    window.URL.revokeObjectURL(url)
-    document.body.removeChild(a)
-  } catch (err) {
-    console.error('PDF export failed:', err)
-  }
-  exportingPdf.value = false
+function openPrintPreview(): void {
+  // Open print preview page in a new window
+  const printUrl = `/settings/export/print?format=${selectedFormat.value}`
+  window.open(printUrl, '_blank', 'width=900,height=700')
 }
 </script>
 
@@ -140,11 +117,10 @@ async function downloadPDF(): Promise<void> {
             </div>
             <UButton
               color="primary"
-              icon="i-heroicons-document-arrow-down"
-              :loading="exportingPdf"
-              @click="downloadPDF"
+              icon="i-heroicons-printer"
+              @click="openPrintPreview"
             >
-              Download
+              Print Preview
             </UButton>
           </div>
 

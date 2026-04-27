@@ -1,5 +1,4 @@
 import { parseRecipeFromHtml, parseIngredientString } from '../../utils/recipeParser'
-import { browserFetch } from '../../utils/browserFetch'
 
 interface ImportBody {
   url: string
@@ -26,9 +25,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Fetch the page - try regular fetch first, fall back to headless browser
+  // Fetch the page
   let html: string
-  let usedBrowser = false
 
   try {
     const response = await fetch(url.toString(), {
@@ -56,9 +54,18 @@ export default defineEventHandler(async (event) => {
       })
     }
 
-    // Any error status (403, 400, etc.) - try headless browser
+    if (response.status === 403) {
+      throw createError({
+        statusCode: 403,
+        message: 'This website blocks automated access. Try copying the recipe manually.',
+      })
+    }
+
     if (!response.ok) {
-      throw new Error('NEED_BROWSER')
+      throw createError({
+        statusCode: 502,
+        message: `Failed to fetch recipe: HTTP ${response.status}`,
+      })
     }
 
     html = await response.text()
@@ -68,54 +75,10 @@ export default defineEventHandler(async (event) => {
       throw err
     }
 
-    // Try headless browser for bot protection or other fetch issues
-    const shouldTryBrowser =
-      err instanceof Error && err.message === 'NEED_BROWSER'
-
-    if (shouldTryBrowser) {
-      try {
-        console.log(`[import] Using headless browser for: ${url.toString()}`)
-        const result = await browserFetch(url.toString(), {
-          timeout: 45000, // Increased timeout for slow sites
-          // Wait for recipe schema to be present (common in recipe sites)
-          waitForSelector: '[itemtype*="Recipe"], script[type="application/ld+json"]',
-        })
-        console.log(`[import] Browser fetch successful, got ${result.html.length} chars`)
-        html = result.html
-        // Use the final URL after redirects (validate it's a proper URL)
-        try {
-          const finalUrl = new URL(result.finalUrl)
-          // Sanity check: detect doubled URLs (e.g., "https://example.com/pathhttps://example.com/path")
-          // Check if the URL contains "http" more than once
-          const httpCount = (finalUrl.href.match(/https?:\/\//g) || []).length
-          if (httpCount === 1) {
-            url = finalUrl
-          } else {
-            console.warn(`[import] Detected malformed URL with ${httpCount} protocols, keeping original`)
-          }
-        } catch {
-          // Keep original url if finalUrl is invalid
-        }
-        usedBrowser = true
-      } catch (browserErr) {
-        const errorMessage = browserErr instanceof Error ? browserErr.message : String(browserErr)
-        const errorStack = browserErr instanceof Error ? browserErr.stack : ''
-        console.error('[import] Browser fetch failed:', {
-          message: errorMessage,
-          stack: errorStack,
-          url: url.toString(),
-        })
-        throw createError({
-          statusCode: 502,
-          message: `Failed to fetch recipe: ${errorMessage.slice(0, 100)}`,
-        })
-      }
-    } else {
-      throw createError({
-        statusCode: 502,
-        message: `Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`,
-      })
-    }
+    throw createError({
+      statusCode: 502,
+      message: `Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`,
+    })
   }
 
   // Parse the recipe
@@ -157,10 +120,6 @@ export default defineEventHandler(async (event) => {
         content: inst.content,
         timerMinutes: inst.timerMinutes,
       })),
-    },
-    // Include metadata about how it was fetched (useful for debugging)
-    _meta: {
-      usedBrowser,
     },
   }
 })

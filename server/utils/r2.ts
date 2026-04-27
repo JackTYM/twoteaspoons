@@ -5,7 +5,6 @@ import {
   GetObjectCommand,
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import sharp from 'sharp'
 
 // R2 client configured for Cloudflare
 const r2Client = new S3Client({
@@ -20,39 +19,6 @@ const r2Client = new S3Client({
 const BUCKET = process.env.R2_BUCKET_NAME!
 
 export type ImageCategory = 'recipes' | 'avatars' | 'comments' | 'collections'
-
-// Image compression settings by category
-const IMAGE_SETTINGS: Record<ImageCategory, { maxWidth: number; maxHeight: number; quality: number }> = {
-  recipes: { maxWidth: 1920, maxHeight: 1080, quality: 80 },
-  avatars: { maxWidth: 400, maxHeight: 400, quality: 85 },
-  comments: { maxWidth: 1200, maxHeight: 900, quality: 75 },
-  collections: { maxWidth: 1200, maxHeight: 800, quality: 80 },
-}
-
-/**
- * Compress and optimize an image
- * Converts to WebP for best compression, resizes to max dimensions
- */
-async function compressImage(
-  buffer: Buffer,
-  category: ImageCategory
-): Promise<{ data: Buffer; contentType: string; extension: string }> {
-  const settings = IMAGE_SETTINGS[category]
-
-  const compressed = await sharp(buffer)
-    .resize(settings.maxWidth, settings.maxHeight, {
-      fit: 'inside',
-      withoutEnlargement: true,
-    })
-    .webp({ quality: settings.quality })
-    .toBuffer()
-
-  return {
-    data: compressed,
-    contentType: 'image/webp',
-    extension: '.webp',
-  }
-}
 
 /**
  * Generate a unique key for an uploaded image
@@ -71,7 +37,7 @@ function generateKey(
 
 /**
  * Upload an image to R2
- * Compresses and converts to WebP before uploading
+ * Images should be pre-compressed on the client side
  * Returns either a public URL (if R2_CDN_URL is set) or a presigned URL
  */
 export async function uploadImage(
@@ -79,19 +45,25 @@ export async function uploadImage(
   category: ImageCategory,
   userId: string,
   filename: string,
-  _contentType: string
+  contentType: string
 ): Promise<string> {
-  // Compress and convert to WebP
-  const { data, contentType, extension } = await compressImage(file, category)
+  // Determine extension from content type or filename
+  const extMap: Record<string, string> = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+  }
+  const extension = extMap[contentType] || filename.match(/\.[^/.]+$/)?.[0] || '.webp'
   const key = generateKey(category, userId, filename, extension)
 
-  console.log(`[R2] Uploading ${filename}: ${(file.length / 1024).toFixed(0)}KB -> ${(data.length / 1024).toFixed(0)}KB (${((1 - data.length / file.length) * 100).toFixed(0)}% reduction)`)
+  console.log(`[R2] Uploading ${filename}: ${(file.length / 1024).toFixed(0)}KB`)
 
   await r2Client.send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
-      Body: data,
+      Body: file,
       ContentType: contentType,
     })
   )
