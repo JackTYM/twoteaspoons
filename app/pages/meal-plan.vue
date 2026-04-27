@@ -1,10 +1,15 @@
 <script setup lang="ts">
+import type { MealPlanWithRecipe } from '~/services/mealPlanService'
+
 definePageMeta({
   middleware: 'auth',
 })
 
 const { getAuthHeaders } = useAuth()
+const mealPlanService = useMealPlanService()
+const recipeService = useRecipeService()
 
+// Internal types matching component expectations (camelCase)
 interface RecipePreview {
   id: number
   title: string
@@ -25,8 +30,33 @@ interface MealPlan {
   recipe: RecipePreview
 }
 
-interface MealPlanResponse {
-  mealPlans: MealPlan[]
+// Transform service data (snake_case) to component format (camelCase)
+function transformMealPlan(mp: MealPlanWithRecipe): MealPlan {
+  return {
+    id: mp.id,
+    recipeId: mp.recipe_id,
+    date: mp.date,
+    mealType: mp.meal_type as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+    servings: mp.servings,
+    recipe: mp.recipe ? {
+      id: mp.recipe.id,
+      title: mp.recipe.title,
+      slug: mp.recipe.slug,
+      coverPhoto: mp.recipe.cover_photo,
+      prepTime: mp.recipe.prep_time,
+      cookTime: mp.recipe.cook_time,
+      servings: mp.recipe.servings,
+      author: mp.recipe.author,
+    } : {
+      id: 0,
+      title: 'Unknown Recipe',
+      slug: '',
+      coverPhoto: null,
+      prepTime: null,
+      cookTime: null,
+      servings: null,
+    },
+  }
 }
 
 // Week navigation
@@ -58,36 +88,37 @@ const weekDates = computed(() => {
   return dates
 })
 
-const weekStartParam = computed(() => currentWeekStart.value.toISOString())
-const weekEndParam = computed(() => getEndOfWeek(currentWeekStart.value).toISOString())
+// Date params as YYYY-MM-DD strings for the service
+const weekStartParam = computed(() => currentWeekStart.value.toISOString().split('T')[0])
+const weekEndParam = computed(() => getEndOfWeek(currentWeekStart.value).toISOString().split('T')[0])
 
-const { data, refresh, status } = await useFetch<MealPlanResponse>('/api/meal-plans', {
-  query: {
-    start: weekStartParam,
-    end: weekEndParam,
+// Fetch meal plans using the service
+const { data: mealPlansRaw, status } = await useAsyncData(
+  'meal-plans',
+  async () => {
+    const result = await mealPlanService.getMealPlans(weekStartParam.value!, weekEndParam.value!)
+    return result.data ?? []
   },
-  headers: getAuthHeaders(),
-})
+  { watch: [weekStartParam, weekEndParam] }
+)
 
-const mealPlans = computed(() => data.value?.mealPlans || [])
+// Transform to camelCase for components
+const mealPlans = computed(() => (mealPlansRaw.value ?? []).map(transformMealPlan))
 
 function prevWeek(): void {
   const d = new Date(currentWeekStart.value)
   d.setDate(d.getDate() - 7)
   currentWeekStart.value = d
-  refresh()
 }
 
 function nextWeek(): void {
   const d = new Date(currentWeekStart.value)
   d.setDate(d.getDate() + 7)
   currentWeekStart.value = d
-  refresh()
 }
 
 function goToToday(): void {
   currentWeekStart.value = getStartOfWeek(new Date())
-  refresh()
 }
 
 const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const
@@ -96,29 +127,27 @@ const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'] as const
 const deleting = ref(false)
 
 async function removeMealPlan(planId: number): Promise<void> {
-  if (!data.value) return
+  if (!mealPlansRaw.value) return
 
   // Store the plan for potential rollback
-  const removedPlan = data.value.mealPlans.find(p => p.id === planId)
-  if (!removedPlan) return
+  const removedPlanIndex = mealPlansRaw.value.findIndex(p => p.id === planId)
+  if (removedPlanIndex === -1) return
+  const removedPlan = mealPlansRaw.value[removedPlanIndex]
 
   deleting.value = true
 
-  // Optimistic update - reassign array to trigger reactivity
-  data.value = {
-    ...data.value,
-    mealPlans: data.value.mealPlans.filter(p => p.id !== planId),
-  }
+  // Optimistic update - splice to trigger reactivity
+  mealPlansRaw.value.splice(removedPlanIndex, 1)
 
   try {
-    await $fetch(`/api/meal-plans/${planId}`, { method: 'DELETE', headers: getAuthHeaders() })
+    const { error } = await mealPlanService.deleteMealPlan(planId)
+    if (error) {
+      throw error
+    }
   } catch (err) {
-    // Revert on error - add back
-    if (data.value) {
-      data.value = {
-        ...data.value,
-        mealPlans: [...data.value.mealPlans, removedPlan],
-      }
+    // Revert on error - add back at original position
+    if (mealPlansRaw.value) {
+      mealPlansRaw.value.splice(removedPlanIndex, 0, removedPlan!)
     }
     console.error('Failed to remove meal plan:', err)
   }
@@ -131,10 +160,23 @@ const selectedDate = ref<Date | null>(null)
 const selectedMealType = ref<string>('dinner')
 const addingPlan = ref(false)
 
-const { data: recipesData } = await useFetch<{ recipes: RecipePreview[] }>('/api/recipes', {
-  headers: getAuthHeaders(),
-})
-const recipes = computed(() => recipesData.value?.recipes || [])
+// Fetch recipes for the add modal using the service
+const { data: recipesRaw } = await useAsyncData(
+  'recipes-for-meal-plan',
+  () => recipeService.getPublicRecipes()
+)
+
+// Transform recipes to the format expected by the modal component
+const recipes = computed(() => (recipesRaw.value ?? []).map(r => ({
+  id: r.id,
+  title: r.title,
+  slug: r.slug,
+  coverPhoto: r.cover_photo,
+  prepTime: r.prep_time,
+  cookTime: r.cook_time,
+  servings: r.servings,
+  author: r.author ? { username: r.author.username } : null,
+})))
 
 function openAddModal(date: Date, mealType: string): void {
   selectedDate.value = date
@@ -143,67 +185,80 @@ function openAddModal(date: Date, mealType: string): void {
 }
 
 async function addMealPlan(recipeId: number): Promise<void> {
-  if (!selectedDate.value || !data.value) return
+  if (!selectedDate.value || !mealPlansRaw.value) return
 
   // Find the recipe for optimistic update
-  const recipe = recipes.value.find(r => r.id === recipeId)
+  const recipe = recipesRaw.value?.find(r => r.id === recipeId)
   if (!recipe) return
 
   addingPlan.value = true
   showAddModal.value = false
 
-  // Prepare optimistic data
+  // Prepare optimistic data in service format (snake_case)
   const optimisticId = -Date.now() // Temporary negative ID
-  const optimisticPlan: MealPlan = {
+  const dateStr = selectedDate.value.toISOString().split('T')[0] ?? ''
+  const optimisticPlan: MealPlanWithRecipe = {
     id: optimisticId,
-    recipeId,
-    date: selectedDate.value.toISOString(),
-    mealType: selectedMealType.value as MealPlan['mealType'],
-    servings: recipe.servings,
+    user_id: '', // Will be set by server
+    recipe_id: recipeId,
+    date: dateStr,
+    meal_type: selectedMealType.value as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+    servings: recipe.servings ?? 1,
     recipe: {
       id: recipe.id,
       title: recipe.title,
       slug: recipe.slug,
-      coverPhoto: recipe.coverPhoto,
-      prepTime: recipe.prepTime,
-      cookTime: recipe.cookTime,
+      cover_photo: recipe.cover_photo,
+      prep_time: recipe.prep_time,
+      cook_time: recipe.cook_time,
       servings: recipe.servings,
-      author: recipe.author,
+      user_id: recipe.user_id,
+      author: recipe.author ? { username: recipe.author.username } : undefined,
     },
   }
 
-  // Optimistic update - reassign array to trigger reactivity
-  data.value = {
-    ...data.value,
-    mealPlans: [...data.value.mealPlans, optimisticPlan],
-  }
+  // Optimistic update
+  mealPlansRaw.value.push(optimisticPlan)
 
   try {
-    const result = await $fetch<{ mealPlan: MealPlan }>('/api/meal-plans', {
-      method: 'POST',
-      body: {
-        recipeId,
-        date: selectedDate.value.toISOString(),
-        mealType: selectedMealType.value,
-      },
-      headers: getAuthHeaders(),
+    const { data: newPlan, error } = await mealPlanService.createMealPlan({
+      recipe_id: recipeId,
+      date: dateStr,
+      meal_type: selectedMealType.value as 'breakfast' | 'lunch' | 'dinner' | 'snack',
+      servings: recipe.servings ?? 1,
     })
 
+    if (error) {
+      throw error
+    }
+
     // Replace optimistic entry with real data
-    if (data.value) {
-      data.value = {
-        ...data.value,
-        mealPlans: data.value.mealPlans.map(p =>
-          p.id === optimisticId ? result.mealPlan : p
-        ),
+    if (mealPlansRaw.value && newPlan) {
+      const index = mealPlansRaw.value.findIndex(p => p.id === optimisticId)
+      if (index !== -1) {
+        // Create a proper MealPlanWithRecipe from the returned data
+        mealPlansRaw.value[index] = {
+          ...newPlan,
+          recipe: {
+            id: recipe.id,
+            title: recipe.title,
+            slug: recipe.slug,
+            cover_photo: recipe.cover_photo,
+            prep_time: recipe.prep_time,
+            cook_time: recipe.cook_time,
+            servings: recipe.servings,
+            user_id: recipe.user_id,
+            author: recipe.author ? { username: recipe.author.username } : undefined,
+          },
+        }
       }
     }
   } catch (err) {
     // Revert optimistic update on error
-    if (data.value) {
-      data.value = {
-        ...data.value,
-        mealPlans: data.value.mealPlans.filter(p => p.id !== optimisticId),
+    if (mealPlansRaw.value) {
+      const index = mealPlansRaw.value.findIndex(p => p.id === optimisticId)
+      if (index !== -1) {
+        mealPlansRaw.value.splice(index, 1)
       }
     }
     console.error('Failed to add meal plan:', err)
@@ -211,7 +266,7 @@ async function addMealPlan(recipeId: number): Promise<void> {
   addingPlan.value = false
 }
 
-// Generate shopping list from week
+// Generate shopping list from week (still uses server API for now)
 const generatingList = ref(false)
 
 const weekLabel = computed(() => {

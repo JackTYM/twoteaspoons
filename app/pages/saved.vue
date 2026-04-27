@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { RecipeWithDetails } from '~/services/recipeService'
+
 definePageMeta({
   middleware: 'auth',
 })
@@ -8,8 +10,10 @@ useSeoMeta({
   description: 'Your saved recipes collection',
 })
 
-const { getAuthHeaders } = useAuth()
+const recipeService = useRecipeService()
+const categoryService = useCategoryService()
 
+// Interface for component-expected format (camelCase)
 interface RecipeCategory {
   id: number
   name: string
@@ -33,11 +37,38 @@ interface SavedRecipe {
   categories?: RecipeCategory[]
 }
 
-const { data, status } = await useFetch<{ recipes: SavedRecipe[] }>('/api/saves', {
-  headers: getAuthHeaders(),
-})
+// Transform service data (snake_case) to component format (camelCase)
+function transformRecipe(r: RecipeWithDetails): SavedRecipe {
+  return {
+    id: r.id,
+    slug: r.slug,
+    title: r.title,
+    description: r.description,
+    coverPhoto: r.cover_photo,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+    servings: r.servings,
+    saveCount: r.save_count,
+    savedAt: r.created_at, // Use created_at as savedAt proxy
+    author: r.author ? { name: r.author.name ?? '', username: r.author.username } : null,
+    categories: r.categories.map(c => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      icon: c.icon,
+      type: c.type,
+    })),
+  }
+}
 
-const savedRecipes = computed(() => data.value?.recipes || [])
+// Fetch saved recipes using the service
+const { data: recipesRaw, status } = await useAsyncData(
+  'saved-recipes',
+  () => recipeService.getSavedRecipes()
+)
+
+// Transform to camelCase for components
+const savedRecipes = computed(() => (recipesRaw.value ?? []).map(transformRecipe))
 
 // View preferences
 const viewMode = ref<'grid' | 'list'>('grid')
@@ -83,15 +114,16 @@ onMounted(async () => {
 watch(viewMode, (val) => localStorage.setItem('saved-view', val))
 watch(sortBy, (val) => localStorage.setItem('saved-sort', val))
 
-// Fetch category names for display
-const { data: categoriesData } = await useFetch<{
-  groups: Array<{ type: string; label: string; categories: Array<{ id: number; name: string; slug: string }> }>
-}>('/api/categories')
+// Fetch categories using the service
+const { data: categoryGroups } = await useAsyncData(
+  'categories-for-saved',
+  () => categoryService.getCategoriesGrouped()
+)
 
 // Map slug to name for display
 const categoryNameMap = computed(() => {
   const map: Record<string, string> = {}
-  for (const group of categoriesData.value?.groups || []) {
+  for (const group of categoryGroups.value ?? []) {
     for (const cat of group.categories) {
       map[cat.slug] = cat.name
     }
@@ -254,27 +286,25 @@ const sortMenuItems = computed(() => [
   })),
 ])
 
-// Unsave recipe
+// Unsave recipe using the service
 async function handleUnsave(recipeId: number): Promise<void> {
-  if (!data.value) return
+  if (!recipesRaw.value) return
 
   // Store the recipe and its index for potential rollback
-  const recipeIndex = data.value.recipes.findIndex((r) => r.id === recipeId)
+  const recipeIndex = recipesRaw.value.findIndex((r) => r.id === recipeId)
   if (recipeIndex === -1) return
-  const removedRecipe = data.value.recipes[recipeIndex]
-  if (!removedRecipe) return
+  const removedRecipe = recipesRaw.value[recipeIndex]
 
   // Optimistic update - remove from list immediately
-  data.value.recipes.splice(recipeIndex, 1)
+  recipesRaw.value.splice(recipeIndex, 1)
 
   try {
-    await $fetch(`/api/recipes/by-id/${recipeId}/save`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
+    await recipeService.unsaveRecipe(recipeId)
   } catch (err) {
     // Revert on error - add back to same position
-    data.value.recipes.splice(recipeIndex, 0, removedRecipe)
+    if (recipesRaw.value) {
+      recipesRaw.value.splice(recipeIndex, 0, removedRecipe!)
+    }
     console.error('Failed to unsave recipe:', err)
   }
 }
