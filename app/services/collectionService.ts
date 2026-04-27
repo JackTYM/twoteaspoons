@@ -1,7 +1,12 @@
-import type { DbCollection, DbRecipe, DbCollectionRecipe } from '~/types/database'
+import type { DbCollection, DbRecipe, DbCollectionRecipe, DbUser } from '~/types/database'
+
+// Recipe with author info for URL generation
+export interface RecipeWithAuthor extends DbRecipe {
+  author: { username: string | null } | null
+}
 
 export interface CollectionWithRecipes extends DbCollection {
-  recipes: DbRecipe[]
+  recipes: RecipeWithAuthor[]
   recipe_count: number
 }
 
@@ -141,7 +146,7 @@ export function useCollectionService() {
       }
 
       const collectionRecipes = (crData || []) as DbCollectionRecipe[]
-      let recipes: DbRecipe[] = []
+      let recipes: RecipeWithAuthor[] = []
 
       if (collectionRecipes.length > 0) {
         const recipeIds = collectionRecipes.map(cr => cr.recipe_id)
@@ -156,15 +161,37 @@ export function useCollectionService() {
         }
 
         if (recipeData) {
-          // Sort recipes by their order in collection_recipes
+          // Get unique user IDs from recipes
+          const userIds = [...new Set((recipeData as DbRecipe[]).map(r => r.user_id))]
+
+          // Fetch authors
+          const authorMap = new Map<string, { username: string | null }>()
+          if (userIds.length > 0) {
+            const { data: users } = await from('users')
+              .select('id, username')
+              .in('id', userIds)
+
+            if (users) {
+              for (const u of users as Pick<DbUser, 'id' | 'username'>[]) {
+                authorMap.set(u.id, { username: u.username })
+              }
+            }
+          }
+
+          // Sort recipes by their order in collection_recipes and add author info
           const orderMap = new Map<number, number>(
             collectionRecipes.map(cr => [cr.recipe_id, cr.sort_order])
           )
-          recipes = (recipeData as DbRecipe[]).sort((a, b) => {
-            const orderA = orderMap.get(a.id) ?? 0
-            const orderB = orderMap.get(b.id) ?? 0
-            return orderA - orderB
-          })
+          recipes = (recipeData as DbRecipe[])
+            .map(r => ({
+              ...r,
+              author: authorMap.get(r.user_id) || null,
+            }))
+            .sort((a, b) => {
+              const orderA = orderMap.get(a.id) ?? 0
+              const orderB = orderMap.get(b.id) ?? 0
+              return orderA - orderB
+            })
         }
       }
 
@@ -222,7 +249,7 @@ export function useCollectionService() {
       }
 
       const collectionRecipes = (crData || []) as DbCollectionRecipe[]
-      let recipes: DbRecipe[] = []
+      let recipes: RecipeWithAuthor[] = []
 
       if (collectionRecipes.length > 0) {
         const recipeIds = collectionRecipes.map(cr => cr.recipe_id)
@@ -237,15 +264,37 @@ export function useCollectionService() {
         }
 
         if (recipeData) {
-          // Sort recipes by their order in collection_recipes
+          // Get unique user IDs from recipes
+          const userIds = [...new Set((recipeData as DbRecipe[]).map(r => r.user_id))]
+
+          // Fetch authors
+          const authorMap = new Map<string, { username: string | null }>()
+          if (userIds.length > 0) {
+            const { data: users } = await from('users')
+              .select('id, username')
+              .in('id', userIds)
+
+            if (users) {
+              for (const u of users as Pick<DbUser, 'id' | 'username'>[]) {
+                authorMap.set(u.id, { username: u.username })
+              }
+            }
+          }
+
+          // Sort recipes by their order in collection_recipes and add author info
           const orderMap = new Map<number, number>(
             collectionRecipes.map(cr => [cr.recipe_id, cr.sort_order])
           )
-          recipes = (recipeData as DbRecipe[]).sort((a, b) => {
-            const orderA = orderMap.get(a.id) ?? 0
-            const orderB = orderMap.get(b.id) ?? 0
-            return orderA - orderB
-          })
+          recipes = (recipeData as DbRecipe[])
+            .map(r => ({
+              ...r,
+              author: authorMap.get(r.user_id) || null,
+            }))
+            .sort((a, b) => {
+              const orderA = orderMap.get(a.id) ?? 0
+              const orderB = orderMap.get(b.id) ?? 0
+              return orderA - orderB
+            })
         }
       }
 

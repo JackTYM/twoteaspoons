@@ -1,52 +1,49 @@
 <script setup lang="ts">
+import type { CollectionWithRecipes, RecipeWithAuthor } from '~/services/collectionService'
+
 definePageMeta({
   middleware: 'auth',
 })
 
 const route = useRoute()
 const collectionSlug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
+const { user } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
+const collectionService = useCollectionService()
 
-interface Recipe {
-  id: number
-  slug: string
-  title: string
-  description: string | null
-  coverPhoto: string | null
-  prepTime: number | null
-  cookTime: number | null
-  servings: number
-  author?: { username: string | null } | null
-}
-
-interface Collection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-}
-
-interface CollectionData {
-  collection: Collection
-  recipes: Recipe[]
-  isOwner: boolean
-}
+// Data state
+const collectionData = ref<CollectionWithRecipes | null>(null)
+const isOwner = ref(false)
 
 const {
   data,
   status,
   refresh,
-} = await useFetch<CollectionData>(`/api/collections/by-id/${collectionSlug.value}`, {
-  headers: getAuthHeaders(),
-})
+} = await useAsyncData(
+  `collection-${collectionSlug.value}`,
+  async () => {
+    // First we need to get the user's username to find the collection by slug
+    // For user's own collection view, we use their username
+    if (!user.value?.username) {
+      throw new Error('Not authenticated')
+    }
+    const result = await collectionService.getCollectionBySlug(user.value.username, collectionSlug.value)
+    if (result.error) {
+      throw result.error
+    }
+    if (result.data) {
+      collectionData.value = result.data
+      isOwner.value = user.value?.id === result.data.user_id
+    }
+    return result.data
+  },
+  { watch: [collectionSlug] }
+)
 
 useSeoMeta({
-  title: computed(() => data.value?.collection.name || 'Cookbook'),
+  title: computed(() => data.value?.name || 'Cookbook'),
   description: computed(
-    () => data.value?.collection.description || 'Recipe cookbook'
+    () => data.value?.description || 'Recipe cookbook'
   ),
 })
 
@@ -54,7 +51,7 @@ useSeoMeta({
 const addModalOpen = ref(false)
 
 const existingRecipeIds = computed(() => {
-  return data.value?.recipes.map((r) => r.id) ?? []
+  return data.value?.recipes.map((r: RecipeWithAuthor) => r.id) ?? []
 })
 
 function handleRecipesAdded(): void {
@@ -62,23 +59,24 @@ function handleRecipesAdded(): void {
 }
 
 // Remove recipe handling
-const recipeToRemove = ref<Recipe | null>(null)
+const recipeToRemove = ref<RecipeWithAuthor | null>(null)
 const removing = ref(false)
 
 async function handleRemoveRecipe(): Promise<void> {
-  if (!recipeToRemove.value) return
+  if (!recipeToRemove.value || !data.value) return
 
   removing.value = true
   try {
-    await $fetch(
-      `/api/collections/by-id/${collectionSlug.value}/recipes/${recipeToRemove.value.id}`,
-      {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      }
+    const { error } = await collectionService.removeRecipeFromCollection(
+      data.value.id,
+      recipeToRemove.value.id
     )
-    recipeToRemove.value = null
-    refresh()
+    if (error) {
+      console.error('Failed to remove recipe:', error)
+    } else {
+      recipeToRemove.value = null
+      refresh()
+    }
   } catch (err) {
     console.error('Failed to remove recipe:', err)
   }
@@ -100,8 +98,8 @@ function formatTime(minutes: number | null): string {
   return mins ? `${hours}h ${mins}m` : `${hours}h`
 }
 
-function getTotalTime(recipe: Recipe): string {
-  const total = (recipe.prepTime || 0) + (recipe.cookTime || 0)
+function getTotalTime(recipe: RecipeWithAuthor): string {
+  const total = (recipe.prep_time || 0) + (recipe.cook_time || 0)
   return formatTime(total)
 }
 </script>
@@ -155,15 +153,15 @@ function getTotalTime(recipe: Recipe): string {
     <template v-else>
       <!-- Header -->
       <CollectionsCollectionHeader
-        :collection="data.collection"
-        :recipe-count="data.recipes.length"
-        :is-owner="data.isOwner"
+        :collection="data!"
+        :recipe-count="data!.recipes.length"
+        :is-owner="isOwner"
         :use-slug="true"
       />
 
       <!-- Actions bar -->
       <div
-        v-if="data.isOwner"
+        v-if="isOwner"
         class="flex items-center justify-between mb-6"
       >
         <p class="text-neutral-500 dark:text-neutral-400">
@@ -200,7 +198,7 @@ function getTotalTime(recipe: Recipe): string {
           Add your favorite recipes to this cookbook
         </p>
         <UButton
-          v-if="data.isOwner"
+          v-if="isOwner"
           color="primary"
           class="press-effect"
           @click="addModalOpen = true"
@@ -234,8 +232,8 @@ function getTotalTime(recipe: Recipe): string {
               <!-- Cover Image -->
               <div class="h-32 relative overflow-hidden">
                 <img
-                  v-if="recipe.coverPhoto"
-                  :src="recipe.coverPhoto"
+                  v-if="recipe.cover_photo"
+                  :src="recipe.cover_photo"
                   :alt="recipe.title"
                   class="w-full h-full object-cover"
                 >
@@ -289,7 +287,7 @@ function getTotalTime(recipe: Recipe): string {
 
           <!-- Remove Button -->
           <UButton
-            v-if="data.isOwner"
+            v-if="isOwner"
             color="error"
             variant="solid"
             icon="i-heroicons-x-mark"
@@ -303,9 +301,9 @@ function getTotalTime(recipe: Recipe): string {
 
     <!-- Add Recipe Modal -->
     <CollectionsAddRecipeModal
-      v-if="data?.isOwner"
+      v-if="isOwner"
       v-model:open="addModalOpen"
-      :collection-slug="collectionSlug"
+      :collection-id="data?.id"
       :existing-recipe-ids="existingRecipeIds"
       @added="handleRecipesAdded"
     />

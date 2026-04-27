@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import CollectionEditor from '~/components/collection-editor/CollectionEditor.vue'
+import { generateSlug } from '~/utils/slug'
 
 definePageMeta({
   middleware: 'auth',
@@ -12,6 +13,7 @@ useSeoMeta({
 
 const route = useRoute()
 const { getAuthHeaders } = useAuth()
+const collectionService = useCollectionService()
 const loading = ref(false)
 const error = ref('')
 const initialRecipeId = route.query.recipeId as string | undefined
@@ -42,32 +44,28 @@ async function handleSubmit(data: FormData): Promise<void> {
   error.value = ''
 
   try {
-    // Create the collection
-    const result = await $fetch<{ collection: { id: number; slug: string } }>('/api/collections', {
-      method: 'POST',
-      body: {
-        name: data.name.trim(),
-        description: data.description.trim() || undefined,
-        isPublic: data.isPublic,
-        coverPhoto: data.coverPhoto || undefined,
-      },
-      headers: getAuthHeaders(),
+    // Create the collection using the service
+    const slug = generateSlug(data.name.trim())
+    const { data: collection, error: createError } = await collectionService.createCollection({
+      name: data.name.trim(),
+      slug,
+      description: data.description.trim() || null,
+      is_public: data.isPublic,
+      cover_photo: data.coverPhoto || null,
     })
 
+    if (createError || !collection) {
+      throw createError || new Error('Failed to create collection')
+    }
+
     // If recipes were added, add them to the collection
-    if (data.recipes.length > 0) {
-      await $fetch(`/api/collections/by-id/${result.collection.id}/recipes`, {
-        method: 'POST',
-        body: {
-          recipeIds: data.recipes.map(r => r.id),
-        },
-        headers: getAuthHeaders(),
-      })
+    for (const recipe of data.recipes) {
+      await collectionService.addRecipeToCollection(collection.id, recipe.id)
     }
 
     // Clear draft only on successful creation
     editorRef.value?.clearDraft()
-    navigateTo(`/collections/${result.collection.slug}`)
+    navigateTo(`/collections/${collection.slug}`)
   } catch (err) {
     console.error('Failed to create collection:', err)
     error.value = 'Failed to create cookbook'

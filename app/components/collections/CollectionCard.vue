@@ -1,20 +1,14 @@
 <script setup lang="ts">
-interface Collection {
-  id: number
-  name: string
-  slug?: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-  recipeCount: number
-  previewPhotos?: string[]
-}
+import type { DbCollection } from '~/types/database'
+
+// Accepts DbCollection with snake_case fields from the Data API
+type CollectionProp = DbCollection & { recipe_count: number }
 
 interface Props {
-  collection: Collection
+  collection: CollectionProp
 }
 
-const props = defineProps<Props>()
+defineProps<Props>()
 
 const emit = defineEmits<{
   delete: []
@@ -40,9 +34,8 @@ function gradientForName(name: string): string {
   return `linear-gradient(135deg, ${pair[0]}, ${pair[1]})`
 }
 
-const previewPhotos = computed(() => {
-  return props.collection.previewPhotos?.slice(0, 3) ?? []
-})
+// Preview photos not currently supported by the Data API service
+const previewPhotos = computed(() => [] as string[])
 </script>
 
 <template>
@@ -54,8 +47,8 @@ const previewPhotos = computed(() => {
       <!-- Cover image or gradient -->
       <div class="relative h-36">
         <img
-          v-if="collection.coverPhoto"
-          :src="collection.coverPhoto"
+          v-if="collection.cover_photo"
+          :src="collection.cover_photo"
           :alt="collection.name"
           class="w-full h-full object-cover"
         >
@@ -72,7 +65,7 @@ const previewPhotos = computed(() => {
 
         <!-- Recipe photo stack (if no cover but has recipe photos) -->
         <div
-          v-if="!collection.coverPhoto && previewPhotos.length"
+          v-if="!collection.cover_photo && previewPhotos.length"
           class="absolute bottom-3 left-3 flex -space-x-3"
         >
           <img
@@ -87,15 +80,15 @@ const previewPhotos = computed(() => {
         <!-- Visibility badge -->
         <div class="absolute top-3 right-3">
           <UBadge
-            :color="collection.isPublic ? 'success' : 'neutral'"
+            :color="collection.is_public ? 'success' : 'neutral'"
             variant="solid"
             size="xs"
           >
             <UIcon
-              :name="collection.isPublic ? 'i-heroicons-globe-alt' : 'i-heroicons-lock-closed'"
+              :name="collection.is_public ? 'i-heroicons-globe-alt' : 'i-heroicons-lock-closed'"
               class="w-3 h-3 mr-1"
             />
-            {{ collection.isPublic ? 'Public' : 'Private' }}
+            {{ collection.is_public ? 'Public' : 'Private' }}
           </UBadge>
         </div>
 
@@ -128,7 +121,7 @@ const previewPhotos = computed(() => {
             name="i-heroicons-book-open"
             class="w-4 h-4"
           />
-          {{ collection.recipeCount }} {{ collection.recipeCount === 1 ? 'recipe' : 'recipes' }}
+          {{ collection.recipe_count }} {{ collection.recipe_count === 1 ? 'recipe' : 'recipes' }}
         </p>
       </div>
     </div>

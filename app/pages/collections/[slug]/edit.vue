@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import CollectionEditor from '~/components/collection-editor/CollectionEditor.vue'
+import type { CollectionWithRecipes, RecipeWithAuthor } from '~/services/collectionService'
+import { generateSlug } from '~/utils/slug'
 
 definePageMeta({
   middleware: 'auth',
@@ -7,9 +9,10 @@ definePageMeta({
 
 const route = useRoute()
 const collectionSlug = computed(() => route.params.slug as string)
-const { getAuthHeaders } = useAuth()
+const { user } = useAuth()
+const collectionService = useCollectionService()
 
-interface Recipe {
+interface EditorRecipe {
   id: number
   title: string
   coverPhoto: string | null
@@ -17,48 +20,50 @@ interface Recipe {
   cookTime: number | null
 }
 
-interface Collection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-}
-
-interface CollectionData {
-  collection: Collection
-  recipes: Recipe[]
-  isOwner: boolean
-}
-
 interface FormData {
   name: string
   description: string
   coverPhoto: string
   isPublic: boolean
-  recipes: Recipe[]
+  recipes: EditorRecipe[]
 }
+
+// Track ownership
+const isOwner = ref(false)
 
 const {
   data,
   status,
   error: fetchError,
   refresh,
-} = await useFetch<CollectionData>(`/api/collections/by-id/${collectionSlug.value}`, {
-  headers: getAuthHeaders(),
-})
+} = await useAsyncData<CollectionWithRecipes | null>(
+  `collection-edit-${collectionSlug.value}`,
+  async () => {
+    if (!user.value?.username) {
+      throw new Error('Not authenticated')
+    }
+    const result = await collectionService.getCollectionBySlug(user.value.username, collectionSlug.value)
+    if (result.error) {
+      throw result.error
+    }
+    if (result.data) {
+      isOwner.value = user.value?.id === result.data.user_id
+    }
+    return result.data
+  },
+  { watch: [collectionSlug] }
+)
 
 // Redirect if not owner
 watchEffect(() => {
-  if (data.value && !data.value.isOwner) {
+  if (data.value && !isOwner.value) {
     navigateTo(`/collections/${collectionSlug.value}`)
   }
 })
 
 useSeoMeta({
   title: computed(() =>
-    data.value ? `Edit: ${data.value.collection.name}` : 'Edit Cookbook'
+    data.value ? `Edit: ${data.value.name}` : 'Edit Cookbook'
   ),
 })
 
@@ -67,22 +72,27 @@ const error = ref('')
 const editorRef = ref<InstanceType<typeof CollectionEditor> | null>(null)
 
 // Local recipes state (for tracking changes before save)
-const localRecipes = ref<Recipe[]>([])
+const localRecipes = ref<EditorRecipe[]>([])
+
+// Transform RecipeWithAuthor to EditorRecipe format
+function toEditorRecipe(r: RecipeWithAuthor): EditorRecipe {
+  return {
+    id: r.id,
+    title: r.title,
+    coverPhoto: r.cover_photo,
+    prepTime: r.prep_time,
+    cookTime: r.cook_time,
+  }
+}
 
 watchEffect(() => {
   if (data.value?.recipes) {
-    localRecipes.value = data.value.recipes.map((r) => ({
-      id: r.id,
-      title: r.title,
-      coverPhoto: r.coverPhoto,
-      prepTime: r.prepTime,
-      cookTime: r.cookTime,
-    }))
+    localRecipes.value = data.value.recipes.map(toEditorRecipe)
   }
 })
 
 async function handleSubmit(formData: FormData): Promise<void> {
-  if (!formData.name.trim()) {
+  if (!formData.name.trim() || !data.value) {
     error.value = 'Name is required'
     return
   }
@@ -91,40 +101,42 @@ async function handleSubmit(formData: FormData): Promise<void> {
   error.value = ''
 
   try {
-    // Update collection metadata
-    const response = await $fetch<{
-      collection: Collection
-      slugChanged: boolean
-      newSlug: string
-    }>(`/api/collections/by-id/${collectionSlug.value}`, {
-      method: 'PUT',
-      body: {
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        isPublic: formData.isPublic,
-        coverPhoto: formData.coverPhoto || null,
-      },
-      headers: getAuthHeaders(),
-    })
+    // Generate new slug if name changed
+    const newSlug = generateSlug(formData.name.trim())
+    const slugChanged = newSlug !== data.value.slug
 
-    // Update recipe order
+    // Update collection metadata using service
+    const { data: updatedCollection, error: updateError } = await collectionService.updateCollection(
+      data.value.id,
+      {
+        name: formData.name.trim(),
+        slug: newSlug,
+        description: formData.description.trim() || null,
+        is_public: formData.isPublic,
+        cover_photo: formData.coverPhoto || null,
+      }
+    )
+
+    if (updateError || !updatedCollection) {
+      throw updateError || new Error('Failed to update collection')
+    }
+
+    // Update recipe order using service
     if (formData.recipes.length > 0) {
-      await $fetch(`/api/collections/by-id/${collectionSlug.value}/recipes/reorder`, {
-        method: 'PUT',
-        body: {
-          recipes: formData.recipes.map((r, index) => ({
-            recipeId: r.id,
-            sortOrder: index,
-          })),
-        },
-        headers: getAuthHeaders(),
-      })
+      const recipeIds = formData.recipes.map(r => r.id)
+      const { error: reorderError } = await collectionService.reorderCollectionRecipes(
+        data.value.id,
+        recipeIds
+      )
+      if (reorderError) {
+        console.error('Failed to reorder recipes:', reorderError)
+      }
     }
 
     // Clear draft on successful save
     editorRef.value?.clearDraft()
     // Navigate to the new slug if it changed
-    const targetSlug = response.slugChanged ? response.newSlug : collectionSlug.value
+    const targetSlug = slugChanged ? updatedCollection.slug : collectionSlug.value
     navigateTo(`/collections/${targetSlug}`)
   } catch (err) {
     console.error('Failed to update collection:', err)
@@ -141,28 +153,20 @@ function handleAddRecipes(): void {
 }
 
 async function handleRecipesSelected(recipeIds?: number[]): Promise<void> {
-  if (!recipeIds || recipeIds.length === 0) return
+  if (!recipeIds || recipeIds.length === 0 || !data.value) return
 
-  // Add recipes to the collection via API
+  // Add recipes to the collection using service
   try {
-    await $fetch(`/api/collections/by-id/${collectionSlug.value}/recipes`, {
-      method: 'POST',
-      body: { recipeIds },
-      headers: getAuthHeaders(),
-    })
+    for (const recipeId of recipeIds) {
+      await collectionService.addRecipeToCollection(data.value.id, recipeId)
+    }
 
     // Refresh data
     await refresh()
 
     // Update local state
     if (data.value?.recipes) {
-      localRecipes.value = data.value.recipes.map((r) => ({
-        id: r.id,
-        title: r.title,
-        coverPhoto: r.coverPhoto,
-        prepTime: r.prepTime,
-        cookTime: r.cookTime,
-      }))
+      localRecipes.value = data.value.recipes.map(toEditorRecipe)
       editorRef.value?.updateRecipes(localRecipes.value)
     }
   } catch (err) {
@@ -173,11 +177,17 @@ async function handleRecipesSelected(recipeIds?: number[]): Promise<void> {
 }
 
 async function handleRemoveRecipe(recipeId: number): Promise<void> {
+  if (!data.value) return
+
   try {
-    await $fetch(`/api/collections/by-id/${collectionSlug.value}/recipes/${recipeId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
+    const { error: removeError } = await collectionService.removeRecipeFromCollection(
+      data.value.id,
+      recipeId
+    )
+    if (removeError) {
+      console.error('Failed to remove recipe:', removeError)
+      return
+    }
 
     // Update local state
     localRecipes.value = localRecipes.value.filter((r) => r.id !== recipeId)
@@ -187,7 +197,7 @@ async function handleRemoveRecipe(recipeId: number): Promise<void> {
   }
 }
 
-function handleReorderRecipes(recipes: Recipe[]): void {
+function handleReorderRecipes(recipes: EditorRecipe[]): void {
   localRecipes.value = recipes
 }
 </script>
@@ -215,7 +225,7 @@ function handleReorderRecipes(recipes: Recipe[]): void {
     />
 
     <!-- Editor -->
-    <template v-else-if="data?.collection">
+    <template v-else-if="data">
       <UAlert
         v-if="error"
         color="error"
@@ -228,11 +238,11 @@ function handleReorderRecipes(recipes: Recipe[]): void {
       <CollectionEditor
         ref="editorRef"
         :initial-data="{
-          id: data.collection.id,
-          name: data.collection.name,
-          description: data.collection.description || '',
-          coverPhoto: data.collection.coverPhoto || '',
-          isPublic: data.collection.isPublic,
+          id: data.id,
+          name: data.name,
+          description: data.description || '',
+          coverPhoto: data.cover_photo || '',
+          isPublic: data.is_public,
           recipes: localRecipes,
         }"
         submit-label="Save Changes"
@@ -248,7 +258,7 @@ function handleReorderRecipes(recipes: Recipe[]): void {
       <!-- Add Recipe Modal -->
       <CollectionsAddRecipeModal
         v-model:open="addModalOpen"
-        :collection-slug="collectionSlug"
+        :collection-id="data.id"
         :existing-recipe-ids="localRecipes.map((r) => r.id)"
         @added="handleRecipesSelected"
       />

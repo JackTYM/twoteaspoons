@@ -1,47 +1,34 @@
 <script setup lang="ts">
+import type { CollectionWithRecipes, RecipeWithAuthor } from '~/services/collectionService'
+
 const route = useRoute()
 const username = computed(() => route.params.username as string)
 const collectionSlug = computed(() => route.params.slug as string)
-const { getAuthHeaders, user } = useAuth()
+const { user } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
+const collectionService = useCollectionService()
 
-interface Recipe {
-  id: number
-  slug: string
-  title: string
-  description: string | null
-  coverPhoto: string | null
-  prepTime: number | null
-  cookTime: number | null
-  servings: number
-  author?: { username: string | null } | null
-}
+// Track ownership
+const isOwner = ref(false)
 
-interface Collection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-}
-
-interface CollectionData {
-  collection: Collection
-  recipes: Recipe[]
-  isOwner: boolean
-}
-
-const { data, status } = await useFetch<CollectionData>(
-  `/api/collections/${username.value}/${collectionSlug.value}`,
-  {
-    headers: getAuthHeaders(),
-  }
+const { data, status } = await useAsyncData<CollectionWithRecipes | null>(
+  `collection-${username.value}-${collectionSlug.value}`,
+  async () => {
+    const result = await collectionService.getCollectionBySlug(username.value, collectionSlug.value)
+    if (result.error) {
+      throw result.error
+    }
+    if (result.data) {
+      isOwner.value = user.value?.id === result.data.user_id
+    }
+    return result.data
+  },
+  { watch: [username, collectionSlug] }
 )
 
 // If this is the current user's collection, redirect to the shorter URL
 watchEffect(() => {
-  if (data.value?.isOwner && user.value?.username === username.value) {
+  if (isOwner.value && user.value?.username === username.value) {
     navigateTo(`/collections/${collectionSlug.value}`, { replace: true })
   }
 })
@@ -49,12 +36,12 @@ watchEffect(() => {
 useSeoMeta({
   title: computed(
     () =>
-      data.value?.collection.name
-        ? `${data.value.collection.name} by @${username.value}`
+      data.value?.name
+        ? `${data.value.name} by @${username.value}`
         : 'Cookbook'
   ),
   description: computed(
-    () => data.value?.collection.description || 'Recipe cookbook'
+    () => data.value?.description || 'Recipe cookbook'
   ),
 })
 
@@ -66,8 +53,8 @@ function formatTime(minutes: number | null): string {
   return mins ? `${hours}h ${mins}m` : `${hours}h`
 }
 
-function getTotalTime(recipe: Recipe): string {
-  const total = (recipe.prepTime || 0) + (recipe.cookTime || 0)
+function getTotalTime(recipe: RecipeWithAuthor): string {
+  const total = (recipe.prep_time || 0) + (recipe.cook_time || 0)
   return formatTime(total)
 }
 </script>
@@ -124,9 +111,9 @@ function getTotalTime(recipe: Recipe): string {
         <!-- Cover -->
         <div class="relative h-48 sm:h-56">
           <img
-            v-if="data.collection.coverPhoto"
-            :src="data.collection.coverPhoto"
-            :alt="data.collection.name"
+            v-if="data.cover_photo"
+            :src="data.cover_photo"
+            :alt="data.name"
             class="w-full h-full object-cover"
           >
           <div
@@ -140,7 +127,7 @@ function getTotalTime(recipe: Recipe): string {
           <!-- Title overlay -->
           <div class="absolute bottom-0 left-0 right-0 p-6">
             <h1 class="text-2xl sm:text-3xl font-display text-white mb-2">
-              {{ data.collection.name }}
+              {{ data.name }}
             </h1>
             <NuxtLink
               :to="`/users/${username}`"
@@ -158,10 +145,10 @@ function getTotalTime(recipe: Recipe): string {
 
       <!-- Description -->
       <p
-        v-if="data.collection.description"
+        v-if="data.description"
         class="text-neutral-600 dark:text-neutral-300 mb-6"
       >
-        {{ data.collection.description }}
+        {{ data.description }}
       </p>
 
       <!-- Recipe count -->
@@ -208,8 +195,8 @@ function getTotalTime(recipe: Recipe): string {
             <!-- Cover Image -->
             <div class="h-32 relative overflow-hidden">
               <img
-                v-if="recipe.coverPhoto"
-                :src="recipe.coverPhoto"
+                v-if="recipe.cover_photo"
+                :src="recipe.cover_photo"
                 :alt="recipe.title"
                 class="w-full h-full object-cover"
               >

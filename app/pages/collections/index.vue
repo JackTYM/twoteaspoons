@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { DbCollection } from '~/types/database'
+
 definePageMeta({
   middleware: 'auth',
 })
@@ -8,28 +10,25 @@ useSeoMeta({
   description: 'Your recipe cookbooks',
 })
 
-const { getAuthHeaders } = useAuth()
+type CollectionWithCount = DbCollection & { recipe_count: number }
 
-interface Collection {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-  createdAt: string
-  recipeCount: number
-  previewPhotos?: string[]
-}
+const collectionService = useCollectionService()
 
-const { data, status, refresh } = await useFetch<{ collections: Collection[] }>('/api/collections', {
-  headers: getAuthHeaders(),
-})
+const { data, status, refresh } = await useAsyncData(
+  'my-collections',
+  async () => {
+    const result = await collectionService.getMyCollections()
+    if (result.error) {
+      throw result.error
+    }
+    return result.data
+  }
+)
 
-const collections = computed(() => data.value?.collections || [])
+const collections = computed(() => data.value || [])
 
 // Delete handling
-const collectionToDelete = ref<Collection | null>(null)
+const collectionToDelete = ref<CollectionWithCount | null>(null)
 const deleting = ref(false)
 const deleteModalOpen = computed({
   get: () => collectionToDelete.value !== null,
@@ -43,16 +42,20 @@ async function handleDelete(): Promise<void> {
 
   deleting.value = true
   try {
-    await $fetch(`/api/collections/by-id/${collectionToDelete.value.slug}`, { method: 'DELETE', headers: getAuthHeaders() })
-    collectionToDelete.value = null
-    refresh()
+    const { error } = await collectionService.deleteCollection(collectionToDelete.value.id)
+    if (error) {
+      console.error('Failed to delete collection:', error)
+    } else {
+      collectionToDelete.value = null
+      refresh()
+    }
   } catch (err) {
     console.error('Failed to delete collection:', err)
   }
   deleting.value = false
 }
 
-function confirmDelete(collection: Collection): void {
+function confirmDelete(collection: CollectionWithCount): void {
   // Blur active element before opening modal to prevent aria-hidden focus conflict
   if (document.activeElement instanceof HTMLElement) {
     document.activeElement.blur()
@@ -113,7 +116,7 @@ function confirmDelete(collection: Collection): void {
         </div>
         <div>
           <p class="text-2xl font-semibold text-neutral-700 dark:text-neutral-100">
-            {{ collections.reduce((sum, c) => sum + c.recipeCount, 0) }}
+            {{ collections.reduce((sum, c) => sum + c.recipe_count, 0) }}
           </p>
           <p class="text-xs text-neutral-500 dark:text-neutral-400">
             Total Recipes

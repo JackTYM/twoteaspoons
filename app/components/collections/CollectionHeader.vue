@@ -1,15 +1,8 @@
 <script setup lang="ts">
-interface Collection {
-  id: number
-  name: string
-  slug?: string
-  description: string | null
-  isPublic: boolean
-  coverPhoto: string | null
-}
+import type { DbCollection } from '~/types/database'
 
 interface Props {
-  collection: Collection
+  collection: DbCollection
   recipeCount: number
   isOwner: boolean
   useSlug?: boolean
@@ -50,8 +43,8 @@ function gradientForName(name: string): string {
     <!-- Hero background -->
     <div class="h-48 sm:h-56 relative overflow-hidden">
       <img
-        v-if="collection.coverPhoto"
-        :src="collection.coverPhoto"
+        v-if="collection.cover_photo"
+        :src="collection.cover_photo"
         :alt="collection.name"
         class="w-full h-full object-cover"
       >
@@ -81,15 +74,15 @@ function gradientForName(name: string): string {
                 {{ collection.name }}
               </h1>
               <UBadge
-                :color="collection.isPublic ? 'success' : 'neutral'"
+                :color="collection.is_public ? 'success' : 'neutral'"
                 variant="solid"
                 size="sm"
               >
                 <UIcon
-                  :name="collection.isPublic ? 'i-heroicons-globe-alt' : 'i-heroicons-lock-closed'"
+                  :name="collection.is_public ? 'i-heroicons-globe-alt' : 'i-heroicons-lock-closed'"
                   class="w-3 h-3 mr-1"
                 />
-                {{ collection.isPublic ? 'Public' : 'Private' }}
+                {{ collection.is_public ? 'Public' : 'Private' }}
               </UBadge>
             </div>
             <p
