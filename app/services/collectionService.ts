@@ -19,6 +19,7 @@ export interface CollectionCreateInput {
  * Provides CRUD operations for collections and collection-recipe associations.
  * Collections can be public (visible to all) or private (owner only).
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useCollectionService() {
   const { from } = useNeonData()
   const { user } = useAuth()

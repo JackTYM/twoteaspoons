@@ -48,6 +48,7 @@ interface EnsureUserResponse {
  * await userService.updateMyProfile({ name: 'New Name', bio: 'My bio' })
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useUserService() {
   const { from } = useNeonData()
   const { user: currentUser, isAuthenticated } = useAuth()

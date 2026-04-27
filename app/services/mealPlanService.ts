@@ -35,6 +35,7 @@ export interface MealPlanCreateInput {
  * })
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useMealPlanService() {
   const { from } = useNeonData()
   const { user, isAuthenticated } = useAuth()

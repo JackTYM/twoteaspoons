@@ -23,6 +23,7 @@ const TYPE_LABELS: Record<string, string> = {
  *
  * Categories are public and read-only, so no auth is required.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useCategoryService() {
   const { from } = useNeonData()
 

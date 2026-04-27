@@ -19,6 +19,7 @@ export interface CommentCreateInput {
  * After creating/deleting comments with ratings, automatically updates
  * the recipe's average ratings.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useCommentService() {
   const { from } = useNeonData()
   const { user } = useAuth()

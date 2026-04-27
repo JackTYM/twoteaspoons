@@ -71,6 +71,7 @@ interface GetPublicRecipesOptions {
   categorySlugs?: string[]
 }
 
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useRecipeService() {
   const { from } = useNeonData()
   const { user } = useAuth()

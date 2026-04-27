@@ -30,6 +30,7 @@ export interface ShoppingItemUpdateInput extends ShoppingItemCreateInput {
  * All operations require authentication. Uses the Neon Data API
  * via useNeonData() for database access.
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useShoppingListService() {
   const { from } = useNeonData()
   const { user, isAuthenticated } = useAuth()

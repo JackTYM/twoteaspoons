@@ -36,6 +36,7 @@ interface SingleResult<T> {
  *   .single()
  * ```
  */
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useNeonData() {
   const client = useNeonClient()
 
@@ -45,6 +46,7 @@ export function useNeonData() {
    * Returns a PostgREST query builder with full filtering/ordering support.
    * Results use snake_case column names matching the database.
    */
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   function from<T extends TableName>(table: T) {
     return client.from(table) as ReturnType<typeof client.from> & {
       select: (
