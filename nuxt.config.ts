@@ -3,6 +3,11 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
 
+  // Build for Cloudflare Pages
+  nitro: {
+    preset: 'cloudflare-pages',
+  },
+
   // Site configuration for Nuxt SEO
   site: {
     url: 'https://twotsps.com',
@@ -37,6 +42,11 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
 
   modules: ['@nuxt/ui', '@nuxtjs/seo', '@nuxt/eslint'],
+
+  // Disable OG Image generation (requires Puppeteer, not compatible with Cloudflare Workers)
+  ogImage: {
+    enabled: false,
+  },
 
   // Color mode follows system preference by default
   colorMode: {
