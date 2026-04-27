@@ -2,6 +2,7 @@
 import type { ShoppingItem, ShoppingSection } from './types'
 import { SECTION_ORDER } from './types'
 import { useAutosave } from '~/composables/useAutosave'
+import { useShoppingListService } from '~/services/shoppingListService'
 import ShoppingEditorToolbar from './ShoppingEditorToolbar.vue'
 import EditableListHeader from './EditableListHeader.vue'
 import EditableSectionList from './EditableSectionList.vue'
@@ -43,11 +44,11 @@ const emit = defineEmits<{
   addFromRecipes: []
 }>()
 
-// Determine which identifier to use for API calls
-const listIdentifier = computed(() => props.listSlug || props.listId)
-
 const router = useRouter()
-const { getAuthHeaders } = useAuth()
+const shoppingService = useShoppingListService()
+
+// Resolved list ID for service calls (resolved from slug if needed)
+const resolvedListId = ref<number | undefined>(props.listId)
 
 // Active tab state
 const activeTab = ref<'edit' | 'preview'>('edit')
@@ -135,15 +136,44 @@ watch(
   { immediate: true, deep: true }
 )
 
-// API calls
+// Resolve list ID from slug if needed (for edit mode)
+async function resolveListId(): Promise<number | undefined> {
+  if (resolvedListId.value) return resolvedListId.value
+  if (props.listId) {
+    resolvedListId.value = props.listId
+    return props.listId
+  }
+  if (props.listSlug) {
+    const list = await shoppingService.getShoppingListBySlug(props.listSlug)
+    if (list) {
+      resolvedListId.value = list.id
+      return list.id
+    }
+  }
+  return undefined
+}
+
+// Helper to transform DbShoppingItem to ShoppingItem
+function toShoppingItem(dbItem: { id: number; item: string; amount: string | null; unit: string | null; section: string | null; checked: boolean; sort_order: number }): ShoppingItem {
+  return {
+    id: dbItem.id,
+    item: dbItem.item,
+    amount: dbItem.amount,
+    unit: dbItem.unit,
+    section: dbItem.section ?? 'other',
+    checked: dbItem.checked,
+    sortOrder: dbItem.sort_order,
+  }
+}
+
+// Service-based API calls
 async function updateListName(name: string): Promise<void> {
+  const listId = await resolveListId()
+  if (!listId) return
+
   autosaveStatus.value = 'saving'
   try {
-    await $fetch(`/api/shopping-lists/${listIdentifier.value}`, {
-      method: 'PUT',
-      body: { name },
-      headers: getAuthHeaders(),
-    })
+    await shoppingService.updateShoppingList(listId, { name })
     autosaveStatus.value = 'saved'
     setTimeout(() => {
       if (autosaveStatus.value === 'saved') autosaveStatus.value = 'idle'
@@ -155,28 +185,28 @@ async function updateListName(name: string): Promise<void> {
 }
 
 async function addItem(sectionName: string, item: { item: string; amount: string; unit: string }): Promise<void> {
+  const listId = await resolveListId()
+  if (!listId) return
+
   autosaveStatus.value = 'saving'
   try {
-    const response = await $fetch<{ item: ShoppingItem }>(`/api/shopping-lists/${listIdentifier.value}/items`, {
-      method: 'POST',
-      body: {
-        item: item.item,
-        amount: item.amount || null,
-        unit: item.unit || null,
-        section: sectionName,
-      },
-      headers: getAuthHeaders(),
+    const newDbItem = await shoppingService.addItem(listId, {
+      item: item.item,
+      amount: item.amount || null,
+      unit: item.unit || null,
+      section: sectionName,
     })
 
-    // Add to local state
+    // Transform and add to local state
+    const newItem = toShoppingItem(newDbItem)
     const section = sections.value.find(s => s.name === sectionName)
     if (section) {
-      section.items.push(response.item)
+      section.items.push(newItem)
     } else {
       // Create new section
       sections.value.push({
         name: sectionName,
-        items: [response.item],
+        items: [newItem],
       })
       // Sort sections by order
       sections.value.sort((a, b) => SECTION_ORDER.indexOf(a.name as typeof SECTION_ORDER[number]) - SECTION_ORDER.indexOf(b.name as typeof SECTION_ORDER[number]))
@@ -204,11 +234,12 @@ async function updateItem(itemId: number, field: keyof ShoppingItem, value: stri
 
   autosaveStatus.value = 'saving'
   try {
-    await $fetch(`/api/shopping-lists/${listIdentifier.value}/items/${itemId}`, {
-      method: 'PUT',
-      body: { [field]: value },
-      headers: getAuthHeaders(),
-    })
+    // Map camelCase field to snake_case for service
+    const fieldMapping: Record<string, string> = {
+      sortOrder: 'sort_order',
+    }
+    const dbField = fieldMapping[field] || field
+    await shoppingService.updateItem(itemId, { [dbField]: value } as Record<string, unknown>)
     autosaveStatus.value = 'saved'
     setTimeout(() => {
       if (autosaveStatus.value === 'saved') autosaveStatus.value = 'idle'
@@ -231,10 +262,7 @@ async function deleteItem(itemId: number): Promise<void> {
 
   autosaveStatus.value = 'saving'
   try {
-    await $fetch(`/api/shopping-lists/${listIdentifier.value}/items/${itemId}`, {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-    })
+    await shoppingService.deleteItem(itemId)
     autosaveStatus.value = 'saved'
     setTimeout(() => {
       if (autosaveStatus.value === 'saved') autosaveStatus.value = 'idle'
@@ -247,22 +275,16 @@ async function deleteItem(itemId: number): Promise<void> {
 
 async function toggleItem(itemId: number): Promise<void> {
   // Find and toggle locally first (optimistic)
-  let newChecked = false
   for (const section of sections.value) {
     const item = section.items.find(i => i.id === itemId)
     if (item) {
       item.checked = !item.checked
-      newChecked = item.checked
       break
     }
   }
 
   try {
-    await $fetch(`/api/shopping-lists/${listIdentifier.value}/items/${itemId}`, {
-      method: 'PUT',
-      body: { checked: newChecked },
-      headers: getAuthHeaders(),
-    })
+    await shoppingService.updateItem(itemId, { checked: !sections.value.flatMap(s => s.items).find(i => i.id === itemId)?.checked })
   } catch (err) {
     // Revert on error
     for (const section of sections.value) {
@@ -279,12 +301,11 @@ async function toggleItem(itemId: number): Promise<void> {
 async function reorderItems(items: { id: number; sortOrder: number; section?: string }[]): Promise<void> {
   if (items.length === 0) return
 
+  const listId = await resolveListId()
+  if (!listId) return
+
   try {
-    await $fetch(`/api/shopping-lists/${listIdentifier.value}/items/reorder`, {
-      method: 'POST',
-      body: { items },
-      headers: getAuthHeaders(),
-    })
+    await shoppingService.reorderItems(listId, items)
   } catch (err) {
     console.error('Failed to reorder items:', err)
   }

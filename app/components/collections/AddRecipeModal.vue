@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { useRecipeService } from '~/services/recipeService'
+import { useCollectionService } from '~/services/collectionService'
+
 interface Recipe {
   id: number
   title: string
@@ -17,23 +20,35 @@ const emit = defineEmits<{
   added: [recipeIds?: number[]]
 }>()
 
-// Determine which identifier to use for API calls
-const collectionIdentifier = computed(() => props.collectionSlug || props.collectionId)
-
 const open = defineModel<boolean>('open', { default: false })
 
-const { getAuthHeaders } = useAuth()
+const recipeService = useRecipeService()
+const collectionService = useCollectionService()
 
 // Search and recipes
 const search = ref('')
 const selectedIds = ref<Set<number>>(new Set())
 
-// Fetch user's recipes
-const { data: recipesData, status: recipesStatus } = await useFetch<{ recipes: Recipe[] }>('/api/recipes', {
-  headers: getAuthHeaders(),
-})
+// Fetch user's recipes using service
+const recipesStatus = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
+const allRecipes = ref<Recipe[]>([])
 
-const allRecipes = computed(() => recipesData.value?.recipes ?? [])
+// Load recipes on mount
+onMounted(async () => {
+  recipesStatus.value = 'pending'
+  try {
+    const recipes = await recipeService.getMyRecipes()
+    allRecipes.value = recipes.map(r => ({
+      id: r.id,
+      title: r.title,
+      coverPhoto: r.cover_photo,
+    }))
+    recipesStatus.value = 'success'
+  } catch (err) {
+    console.error('Failed to fetch recipes:', err)
+    recipesStatus.value = 'error'
+  }
+})
 
 const filteredRecipes = computed(() => {
   if (!search.value.trim()) return allRecipes.value
@@ -76,8 +91,8 @@ async function addSelected(): Promise<void> {
   try {
     const recipeIds = Array.from(selectedIds.value)
 
-    // If no collection identifier (create mode), just emit the IDs without API call
-    if (!collectionIdentifier.value) {
+    // If no collection ID (create mode), just emit the IDs without API call
+    if (!props.collectionId) {
       selectedIds.value = new Set()
       open.value = false
       emit('added', recipeIds)
@@ -86,16 +101,14 @@ async function addSelected(): Promise<void> {
     }
 
     // Add recipes one at a time for progress feedback
+    // collectionId is guaranteed to be defined here due to the early return above
+    const collectionId = props.collectionId as number
     const total = recipeIds.length
-    for (let i = 0; i < total; i++) {
-      const recipeId = recipeIds[i]
-      await $fetch(`/api/collections/by-id/${collectionIdentifier.value}/recipes`, {
-        method: 'POST',
-        body: { recipeId },
-        headers: getAuthHeaders(),
-      })
-      addedCount.value = i + 1
-      addProgress.value = ((i + 1) / total) * 100
+    for (const recipeId of recipeIds) {
+      const { error } = await collectionService.addRecipeToCollection(collectionId, recipeId)
+      if (error) throw error
+      addedCount.value++
+      addProgress.value = (addedCount.value / total) * 100
     }
 
     selectedIds.value = new Set()

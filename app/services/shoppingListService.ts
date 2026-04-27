@@ -360,6 +360,35 @@ export function useShoppingListService() {
     return data
   }
 
+  /**
+   * Reorder items within a shopping list
+   * Updates sort_order and optionally section for each item
+   */
+  async function reorderItems(
+    listId: number,
+    items: Array<{ id: number; sortOrder: number; section?: string }>
+  ): Promise<void> {
+    requireAuth()
+
+    // Update each item's sort_order (and optionally section)
+    for (const item of items) {
+      const updateData: Record<string, unknown> = {
+        sort_order: item.sortOrder,
+      }
+      if (item.section !== undefined) {
+        updateData.section = item.section
+      }
+
+      const { error } = await from('shopping_items')
+        .update(updateData)
+        .eq('id', item.id)
+
+      if (error) {
+        throw new Error(`Failed to reorder shopping item: ${error.message}`)
+      }
+    }
+  }
+
   return {
     getShoppingLists,
     getShoppingListBySlug,
@@ -371,5 +400,6 @@ export function useShoppingListService() {
     updateItem,
     deleteItem,
     toggleItemChecked,
+    reorderItems,
   }
 }

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCollectionService } from '~/services/collectionService'
+
 interface Collection {
   id: number
   name: string
@@ -20,25 +22,48 @@ const emit = defineEmits<{
 const open = defineModel<boolean>('open', { default: false })
 
 const { getAuthHeaders } = useAuth()
+const collectionService = useCollectionService()
 
-// Fetch user's collections - lazy to avoid SSR hydration issues
-const { data: collectionsData, status, refresh: refreshCollections } = useLazyFetch<{ collections: Collection[] }>('/api/collections', {
-  headers: getAuthHeaders(),
-  immediate: false,
-})
+// Collection loading state
+const status = ref<'idle' | 'pending' | 'success' | 'error'>('idle')
+const collections = ref<Collection[]>([])
+const recipeCollectionIds = ref<number[]>([])
 
-const collections = computed(() => collectionsData.value?.collections ?? [])
-
-// Check which collections already have this recipe
-const { data: recipeCollectionsData, refresh: refreshRecipeCollections } = useLazyFetch<{ collectionIds: number[] }>(
-  () => props.recipeId ? `/api/recipes/by-id/${props.recipeId}/collections` : '',
-  {
-    headers: getAuthHeaders(),
-    immediate: false,
+// Fetch user's collections
+async function refreshCollections(): Promise<void> {
+  status.value = 'pending'
+  try {
+    const { data, error } = await collectionService.getMyCollections()
+    if (error) throw error
+    // Transform to expected format
+    collections.value = (data || []).map(c => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      coverPhoto: c.cover_photo,
+      recipeCount: c.recipe_count,
+    }))
+    status.value = 'success'
+  } catch (err) {
+    console.error('Failed to fetch collections:', err)
+    status.value = 'error'
   }
-)
+}
 
-const recipeCollectionIds = computed(() => recipeCollectionsData.value?.collectionIds ?? [])
+// Fetch which collections already have this recipe (still using API for now)
+async function refreshRecipeCollections(): Promise<void> {
+  if (!props.recipeId) return
+  try {
+    const data = await $fetch<{ collectionIds: number[] }>(
+      `/api/recipes/by-id/${props.recipeId}/collections`,
+      { headers: getAuthHeaders() }
+    )
+    recipeCollectionIds.value = data?.collectionIds ?? []
+  } catch (err) {
+    console.error('Failed to fetch recipe collections:', err)
+    recipeCollectionIds.value = []
+  }
+}
 
 // Fetch data when modal opens
 watch([open, () => props.recipeId], ([isOpen, recipeId]): void => {
@@ -62,15 +87,10 @@ async function addToCollection(collectionId: number): Promise<void> {
 
   adding.value = collectionId
   try {
-    await $fetch(`/api/collections/by-id/${collectionId}/recipes`, {
-      method: 'POST',
-      body: { recipeId: props.recipeId },
-      headers: getAuthHeaders(),
-    })
+    const { error } = await collectionService.addRecipeToCollection(collectionId, props.recipeId)
+    if (error) throw error
     // Update local state optimistically
-    if (recipeCollectionsData.value) {
-      recipeCollectionsData.value.collectionIds.push(collectionId)
-    }
+    recipeCollectionIds.value.push(collectionId)
     emit('added', collectionId)
   } catch (err) {
     console.error('Failed to add to collection:', err)
