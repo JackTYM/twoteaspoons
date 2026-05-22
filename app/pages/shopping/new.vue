@@ -42,7 +42,8 @@ const { data: rawRecipes, status: recipesStatus } = await useAsyncData(
     } catch {
       return []
     }
-  }
+  },
+  { server: false }
 )
 
 // Transform snake_case to camelCase for template

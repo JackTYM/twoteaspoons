@@ -25,24 +25,11 @@ const TYPE_LABELS: Record<string, string> = {
  */
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useCategoryService() {
-  const { from } = useNeonData()
-
   /**
    * Get all categories ordered by type, sort_order, name
    */
   async function getAllCategories(): Promise<DbCategory[]> {
-    const { data, error } = await from('categories')
-      .select('*')
-      .order('type', { ascending: true })
-      .order('sort_order', { ascending: true })
-      .order('name', { ascending: true })
-
-    if (error) {
-      console.error('Failed to fetch categories:', error)
-      return []
-    }
-
-    return data ?? []
+    return await $fetch('/api/categories')
   }
 
   /**

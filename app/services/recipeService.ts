@@ -76,7 +76,7 @@ interface GetPublicRecipesOptions {
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 export function useRecipeService() {
   const { from } = useNeonData()
-  const { user } = useAuth()
+  const { user, getAuthHeaders } = useAuth()
 
   /**
    * Fetch authors for a list of recipes
@@ -225,99 +225,19 @@ export function useRecipeService() {
    * Get all published recipes with authors, ingredients, instructions, categories, and isSaved flag
    */
   async function getPublicRecipes(options?: GetPublicRecipesOptions): Promise<RecipeWithDetails[]> {
-    // Get base recipes
-    let query = from('recipes').select('*').eq('is_published', true)
-
-    // If filtering by categories, we need to get recipe IDs first
-    let filteredRecipeIds: number[] | null = null
-    if (options?.categorySlugs && options.categorySlugs.length > 0) {
-      // Get category IDs for the slugs
-      const { data: matchingCategories } = await from('categories')
-        .select('id')
-        .in('slug', options.categorySlugs)
-
-      if (matchingCategories && matchingCategories.length > 0) {
-        const categoryIds = matchingCategories.map((c: { id: number }) => c.id)
-
-        // Get recipe IDs that have these categories
-        const { data: recipeCategories } = await from('recipe_categories')
-          .select('recipe_id')
-          .in('category_id', categoryIds)
-
-        if (recipeCategories) {
-          const mappedIds = recipeCategories.map((rc: { recipe_id: number }) => rc.recipe_id)
-          filteredRecipeIds = [...new Set<number>(mappedIds)]
-        }
-      }
-
-      // If no matching recipes, return empty
-      if (!filteredRecipeIds || filteredRecipeIds.length === 0) {
-        return []
-      }
-
-      query = query.in('id', filteredRecipeIds)
-    }
-
-    const { data: recipes, error } = await query.order('created_at', { ascending: false })
-
-    if (error || !recipes || recipes.length === 0) {
-      return []
-    }
-
-    const recipeIds = recipes.map((r: DbRecipe) => r.id)
-    const userIds = recipes.map((r: DbRecipe) => r.user_id)
-
-    // Fetch all related data in parallel
-    const [authorMap, ingredientMap, instructionMap, categoryMap, savedSet] = await Promise.all([
-      fetchAuthors(userIds),
-      fetchIngredients(recipeIds),
-      fetchInstructions(recipeIds),
-      fetchCategories(recipeIds),
-      fetchSavedStatus(recipeIds),
-    ])
-
-    return recipes.map((recipe: DbRecipe) =>
-      combineRecipeWithDetails(recipe, authorMap, ingredientMap, instructionMap, categoryMap, savedSet)
-    )
+    const query: Record<string, string> = {}
+    if (options?.categorySlugs?.length) query.categories = options.categorySlugs.join(',')
+    return await $fetch('/api/recipes', { query, headers: getAuthHeaders() })
   }
 
   /**
    * Get a single recipe by username and slug
    */
   async function getRecipeBySlug(username: string, slug: string): Promise<RecipeWithDetails | null> {
-    // First find the user by username
-    const { data: users } = await from('users').select('id').eq('username', username).limit(1)
-
-    if (!users || users.length === 0) {
-      return null
-    }
-
-    const userId = users[0].id
-
-    // Get the recipe
-    const { data: recipes } = await from('recipes')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('slug', slug)
-      .limit(1)
-
-    if (!recipes || recipes.length === 0) {
-      return null
-    }
-
-    const recipe = recipes[0]
-    const recipeIds = [recipe.id]
-
-    // Fetch all related data in parallel
-    const [authorMap, ingredientMap, instructionMap, categoryMap, savedSet] = await Promise.all([
-      fetchAuthors([recipe.user_id]),
-      fetchIngredients(recipeIds),
-      fetchInstructions(recipeIds),
-      fetchCategories(recipeIds),
-      fetchSavedStatus(recipeIds),
-    ])
-
-    return combineRecipeWithDetails(recipe, authorMap, ingredientMap, instructionMap, categoryMap, savedSet)
+    return await $fetch('/api/recipes/by-slug', {
+      query: { username, slug },
+      headers: getAuthHeaders(),
+    })
   }
 
   /**
