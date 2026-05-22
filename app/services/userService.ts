@@ -107,59 +107,7 @@ export function useUserService() {
    * @returns UserPublicProfile or null if not found
    */
   async function getUserByUsername(username: string): Promise<UserPublicProfile | null> {
-    // Fetch user by username
-    const { data: users, error: userError } = await from('users')
-      .select('*')
-      .eq('username', username)
-      .single()
-
-    if (userError || !users) {
-      return null
-    }
-
-    const user = users as DbUser
-
-    // Fetch profile stats, recipes, and collections in parallel
-    const [
-      recipesResult,
-      collectionsResult,
-      followersResult,
-      followingResult,
-    ] = await Promise.all([
-      // Published recipes only
-      from('recipes')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_published', true)
-        .order('created_at', { ascending: false }),
-      // Public collections only
-      from('collections')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_public', true)
-        .order('created_at', { ascending: false }),
-      // Follower count
-      from('follows')
-        .select('follower_id')
-        .eq('following_id', user.id),
-      // Following count
-      from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id),
-    ])
-
-    const userProfile: UserProfile = {
-      ...user,
-      recipe_count: recipesResult.data?.length ?? 0,
-      follower_count: followersResult.data?.length ?? 0,
-      following_count: followingResult.data?.length ?? 0,
-    }
-
-    return {
-      user: userProfile,
-      recipes: (recipesResult.data ?? []) as DbRecipe[],
-      collections: (collectionsResult.data ?? []) as DbCollection[],
-    }
+    return await $fetch(`/api/users/by-username/${username}`)
   }
 
   /**

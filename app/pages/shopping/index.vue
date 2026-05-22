@@ -30,7 +30,8 @@ const { data: rawLists, status, refresh } = await useAsyncData(
     } catch {
       return []
     }
-  }
+  },
+  { server: false }
 )
 
 // Transform snake_case to camelCase for components

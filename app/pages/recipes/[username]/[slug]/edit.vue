@@ -26,7 +26,8 @@ const {
       throw createError({ statusCode: 404, message: 'Recipe not found' })
     }
     return { recipe: transformToRecipeWithRelations(recipeData) }
-  }
+  },
+  { server: false }
 )
 
 const recipe = computed(() => data.value?.recipe)

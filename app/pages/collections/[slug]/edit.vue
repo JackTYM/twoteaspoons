@@ -51,7 +51,7 @@ const {
     }
     return result.data
   },
-  { watch: [collectionSlug] }
+  { server: false, watch: [collectionSlug] }
 )
 
 // Redirect if not owner

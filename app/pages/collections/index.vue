@@ -22,7 +22,8 @@ const { data, status, refresh } = await useAsyncData(
       throw result.error
     }
     return result.data
-  }
+  },
+  { server: false }
 )
 
 const collections = computed(() => data.value || [])

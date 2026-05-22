@@ -37,7 +37,7 @@ const {
     }
     return result.data
   },
-  { watch: [collectionSlug] }
+  { server: false, watch: [collectionSlug] }
 )
 
 useSeoMeta({

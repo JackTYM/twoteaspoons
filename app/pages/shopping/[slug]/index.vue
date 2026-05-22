@@ -46,7 +46,7 @@ const {
       return null
     }
   },
-  { watch: [listSlug] }
+  { server: false, watch: [listSlug] }
 )
 
 // Local reactive state for sections (allows mutation without full re-render)
@@ -193,7 +193,8 @@ const { data: rawRecipes, status: recipesStatus } = await useAsyncData(
     } catch {
       return []
     }
-  }
+  },
+  { server: false }
 )
 
 // Transform snake_case to camelCase for template

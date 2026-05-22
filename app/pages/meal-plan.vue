@@ -99,7 +99,7 @@ const { data: mealPlansRaw, status } = await useAsyncData(
     const result = await mealPlanService.getMealPlans(weekStartParam.value!, weekEndParam.value!)
     return result.data ?? []
   },
-  { watch: [weekStartParam, weekEndParam] }
+  { server: false, watch: [weekStartParam, weekEndParam] }
 )
 
 // Transform to camelCase for components
@@ -163,7 +163,8 @@ const addingPlan = ref(false)
 // Fetch recipes for the add modal using the service
 const { data: recipesRaw } = await useAsyncData(
   'recipes-for-meal-plan',
-  () => recipeService.getPublicRecipes()
+  () => recipeService.getPublicRecipes(),
+  { server: false }
 )
 
 // Transform recipes to the format expected by the modal component

@@ -64,7 +64,8 @@ function transformRecipe(r: RecipeWithDetails): SavedRecipe {
 // Fetch saved recipes using the service
 const { data: recipesRaw, status } = await useAsyncData(
   'saved-recipes',
-  () => recipeService.getSavedRecipes()
+  () => recipeService.getSavedRecipes(),
+  { server: false }
 )
 
 // Transform to camelCase for components
@@ -117,7 +118,8 @@ watch(sortBy, (val) => localStorage.setItem('saved-sort', val))
 // Fetch categories using the service
 const { data: categoryGroups } = await useAsyncData(
   'categories-for-saved',
-  () => categoryService.getCategoriesGrouped()
+  () => categoryService.getCategoriesGrouped(),
+  { server: false }
 )
 
 // Map slug to name for display

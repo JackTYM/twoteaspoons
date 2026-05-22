@@ -12,7 +12,7 @@ let sessionCache: SessionCache | null = null
 // @neondatabase/neon-js does async I/O at module load which breaks Cloudflare Workers
 let neonJsModule: typeof import('@neondatabase/neon-js') | null = null
 
-async function loadNeonJs() {
+async function loadNeonJs(): Promise<typeof import('@neondatabase/neon-js')> {
   if (!neonJsModule) {
     neonJsModule = await import('@neondatabase/neon-js')
   }

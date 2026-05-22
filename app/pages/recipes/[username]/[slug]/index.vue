@@ -148,7 +148,8 @@ const { data: collectionsData } = await useAsyncData<{ collections: Array<{ id: 
         name: c.name,
       })),
     }
-  }
+  },
+  { server: false }
 )
 const collections = computed(() => collectionsData.value?.collections || [])
 const addingToCollection = ref(false)
@@ -174,7 +175,7 @@ const { data: forkInfoData } = await useAsyncData(
     if (!recipe.value) return null
     return recipeService.getForkInfo(recipe.value.id)
   },
-  { watch: [recipe] }
+  { server: false, watch: [recipe] }
 )
 const forkInfo = computed(() => forkInfoData.value)
 

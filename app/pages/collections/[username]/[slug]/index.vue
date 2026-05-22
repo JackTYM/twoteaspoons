@@ -23,7 +23,7 @@ const { data, status } = await useAsyncData<CollectionWithRecipes | null>(
     }
     return result.data
   },
-  { watch: [username, collectionSlug] }
+  { server: false, watch: [username, collectionSlug] }
 )
 
 // If this is the current user's collection, redirect to the shorter URL

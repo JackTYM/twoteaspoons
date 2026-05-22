@@ -26,7 +26,8 @@ const { data, error } = await useAsyncData(
       throw createError({ statusCode: 404, message: 'Recipe not found' })
     }
     return { recipe: transformToRecipeWithRelations(recipeData) }
-  }
+  },
+  { server: false }
 )
 
 // Redirect to new URL if recipe found
