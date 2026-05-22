@@ -25,14 +25,29 @@ function handleSearch(): void {
   }
 }
 
+// Track hydration state to avoid SSR/client mismatch
+const isHydrated = ref(false)
+
+onMounted(async () => {
+  await nextTick()
+  isHydrated.value = true
+})
+
 // Fetch featured recipes (limited set for homepage)
-const { data: recipesData, status } = await useAsyncData(
+const { data: recipesData, status, refresh: refreshRecipes } = await useAsyncData(
   'home-recipes',
   async () => {
     const recipes = await recipeService.getPublicRecipes()
     return { recipes: recipes.map(transformRecipeToUI) }
   }
 )
+
+// Fallback: if SSR didn't populate recipe data, fetch on client after hydration
+watch(isHydrated, async (hydrated) => {
+  if (hydrated && !recipesData.value?.recipes) {
+    await refreshRecipes()
+  }
+}, { once: true })
 
 // Show only the first 9 featured recipes
 const featuredRecipes = computed(() => {

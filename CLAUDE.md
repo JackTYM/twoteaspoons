@@ -85,9 +85,7 @@ A feature is complete when:
 - Related pages that might be affected (e.g., navigation)
 
 ### Git Workflow
-- `develop` branch: Active development
-- `master` branch: Stable/production
-- Work on `develop`, merge to `master` when feature complete
+- Commit directly to `master` — no `develop` branch, no feature branches, no pull requests
 - Commit messages: Clear, imperative mood ("Add recipe scaling", not "Added scaling")
 
 ## Project Structure

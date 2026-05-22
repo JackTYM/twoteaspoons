@@ -184,7 +184,7 @@ const hasActiveFilters = computed(() =>
 )
 
 // Fetch recipes using service
-const { data: recipesData, status } = await useAsyncData(
+const { data: recipesData, status, refresh: refreshRecipes } = await useAsyncData(
   'browse-recipes',
   async () => {
     const categorySlugs = filters.value.categories.length > 0 ? filters.value.categories : undefined
@@ -197,6 +197,13 @@ const { data: recipesData, status } = await useAsyncData(
 )
 
 const allRecipes = computed(() => recipesData.value?.recipes || [] as UIRecipe[])
+
+// Fallback: if SSR didn't populate recipe data, fetch on client after hydration
+watch(isHydrated, async (hydrated) => {
+  if (hydrated && !recipesData.value?.recipes) {
+    await refreshRecipes()
+  }
+}, { once: true })
 
 // Computed: filtered and sorted recipes
 const recipes = computed(() => {
