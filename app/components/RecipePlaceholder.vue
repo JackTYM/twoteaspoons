@@ -17,7 +17,7 @@ withDefaults(defineProps<Props>(), {
     }"
   >
     <!-- Gradient background -->
-    <div class="absolute inset-0 bg-gradient-to-br from-neutral-100 via-neutral-50 to-neutral-100 dark:from-neutral-800 dark:via-neutral-850 dark:to-neutral-800" />
+    <div class="absolute inset-0 bg-gradient-to-br from-neutral-100 via-neutral-200 to-neutral-100 dark:from-neutral-700 dark:to-neutral-900" />
 
     <!-- Decorative shapes -->
     <div class="absolute inset-0 overflow-hidden opacity-30 dark:opacity-20">
@@ -29,7 +29,7 @@ withDefaults(defineProps<Props>(), {
     <!-- Center illustration -->
     <div class="absolute inset-0 flex items-center justify-center">
       <svg
-        class="text-neutral-300 dark:text-neutral-600"
+        class="text-neutral-300 dark:text-neutral-400"
         :class="{
           'w-16 h-16': variant === 'small',
           'w-20 h-20': variant === 'default',
