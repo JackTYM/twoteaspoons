@@ -116,12 +116,12 @@ function getCategoryColor(type: string): string {
 <template>
   <NuxtLink
     :to="recipeUrl"
-    class="group flex flex-col"
+    class="group block"
   >
     <!-- Grid View -->
     <div
       v-if="view === 'grid'"
-      class="relative overflow-hidden rounded-xl bg-neutral-50 dark:bg-neutral-800 hover-lift transition-all duration-200 flex-1"
+      class="relative overflow-hidden rounded-xl bg-neutral-50 dark:bg-neutral-800 hover-lift transition-all duration-200"
     >
       <!-- Cover Photo -->
       <div class="aspect-[4/3] relative overflow-hidden">

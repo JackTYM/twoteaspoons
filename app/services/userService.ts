@@ -107,7 +107,7 @@ export function useUserService() {
    * @returns UserPublicProfile or null if not found
    */
   async function getUserByUsername(username: string): Promise<UserPublicProfile | null> {
-    return await $fetch(`/api/users/by-username/${username}`)
+    return await $fetch<UserPublicProfile | null>(`/api/users/by-username/${username}` as string)
   }
 
   /**

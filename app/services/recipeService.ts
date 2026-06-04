@@ -229,7 +229,7 @@ export function useRecipeService() {
     const query: Record<string, string> = {}
     if (options?.categorySlugs?.length) query.categories = options.categorySlugs.join(',')
     if (options?.cursor) query.cursor = String(options.cursor)
-    return await $fetch('/api/recipes' as string, { query, headers: getAuthHeaders() })
+    return await $fetch<RecipeWithDetails[]>('/api/recipes' as string, { query, headers: getAuthHeaders() })
   }
 
   /**

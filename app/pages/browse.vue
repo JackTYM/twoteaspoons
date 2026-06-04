@@ -479,7 +479,7 @@ function handleAddToCollection(recipeId: number): void {
           <!-- Grid View -->
           <div
             v-else-if="effectiveViewMode === 'grid'"
-            class="grid md:grid-cols-2 xl:grid-cols-3 gap-6"
+            class="grid md:grid-cols-2 xl:grid-cols-3 gap-6 items-start"
           >
             <BrowseRecipeCard
               v-for="recipe in recipes"

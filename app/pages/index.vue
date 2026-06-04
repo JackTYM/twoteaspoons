@@ -300,7 +300,7 @@ function handleAddToCollection(recipeId: number): void {
         <!-- Recipe Grid -->
         <div
           v-else
-          class="grid md:grid-cols-2 lg:grid-cols-3 gap-6"
+          class="grid md:grid-cols-2 lg:grid-cols-3 gap-6 items-start"
         >
           <BrowseRecipeCard
             v-for="recipe in featuredRecipes"
