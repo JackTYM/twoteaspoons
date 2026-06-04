@@ -73,9 +73,9 @@ function getColorClasses(color: string): ColorClasses {
         v-for="action in actions"
         :key="action.to"
         :to="action.to"
-        class="group block"
+        class="group flex flex-col"
       >
-        <div class="p-4 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover-lift transition-all h-full">
+        <div class="p-4 rounded-xl bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 hover-lift transition-all flex-1">
           <div
             class="w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-colors"
             :class="[getColorClasses(action.color).bg, getColorClasses(action.color).hover]"
