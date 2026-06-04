@@ -72,11 +72,11 @@ function formatTime(prepTime: number | null, cookTime: number | null): string {
         v-if="recipe.coverPhoto"
         :src="recipe.coverPhoto"
         :alt="recipe.title"
-        class="w-full h-full object-cover"
+        class="absolute inset-0 w-full h-full object-cover"
       >
       <div
         v-else
-        class="w-full h-full bg-gradient-to-br from-primary-100 to-terracotta-100 dark:from-primary-900/50 dark:to-terracotta-900/50 flex items-center justify-center"
+        class="absolute inset-0 bg-gradient-to-br from-primary-100 to-terracotta-100 dark:from-primary-900/50 dark:to-terracotta-900/50 flex items-center justify-center"
       >
         <UIcon
           name="i-heroicons-photo"

@@ -129,12 +129,12 @@ function getCategoryColor(type: string): string {
           v-if="recipe.coverPhoto"
           :src="recipe.coverPhoto"
           :alt="recipe.title"
-          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
         >
         <RecipePlaceholder
           v-else
           variant="default"
-          class="w-full h-full"
+          class="absolute inset-0"
         />
 
         <!-- Gradient Overlay (on hover) -->
