@@ -29,7 +29,7 @@ const formatOptions: FormatOption[] = [
 async function downloadJSON(): Promise<void> {
   exportingJson.value = true
   try {
-    const response = await $fetch('/api/export/recipes', {
+    const response = await $fetch('/api/export/recipes' as string, {
       headers: getAuthHeaders(),
     })
 

@@ -71,6 +71,7 @@ export interface RecipeCreateInput {
 
 interface GetPublicRecipesOptions {
   categorySlugs?: string[]
+  cursor?: number
 }
 
 // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
@@ -227,14 +228,15 @@ export function useRecipeService() {
   async function getPublicRecipes(options?: GetPublicRecipesOptions): Promise<RecipeWithDetails[]> {
     const query: Record<string, string> = {}
     if (options?.categorySlugs?.length) query.categories = options.categorySlugs.join(',')
-    return await $fetch('/api/recipes', { query, headers: getAuthHeaders() })
+    if (options?.cursor) query.cursor = String(options.cursor)
+    return await $fetch('/api/recipes' as string, { query, headers: getAuthHeaders() })
   }
 
   /**
    * Get a single recipe by username and slug
    */
   async function getRecipeBySlug(username: string, slug: string): Promise<RecipeWithDetails | null> {
-    return await $fetch('/api/recipes/by-slug', {
+    return await $fetch('/api/recipes/by-slug' as string, {
       query: { username, slug },
       headers: getAuthHeaders(),
     })

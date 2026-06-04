@@ -28,7 +28,7 @@ export default defineNuxtPlugin(async () => {
       const tokenData = session?.data?.session?.token || session?.token || ''
 
       // Ensure user exists in our database
-      await $fetch('/api/users/ensure', {
+      await $fetch('/api/users/ensure' as string, {
         method: 'POST',
         body: {
           id: userData.id,

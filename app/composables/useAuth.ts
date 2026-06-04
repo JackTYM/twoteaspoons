@@ -130,7 +130,7 @@ export function useAuth(): UseAuthReturn {
       if (userData) {
         const sessionToken = result?.data?.token || result?.token
         // Ensure user record exists in our database (might not if created via OAuth or Neon directly)
-        await $fetch('/api/users/ensure', {
+        await $fetch('/api/users/ensure' as string, {
           method: 'POST',
           body: {
             id: userData.id,
@@ -181,7 +181,7 @@ export function useAuth(): UseAuthReturn {
       if (userData) {
         const sessionToken = result?.data?.token || result?.token
         // Ensure user record exists in our database with username
-        await $fetch('/api/users/ensure', {
+        await $fetch('/api/users/ensure' as string, {
           method: 'POST',
           body: {
             id: userData.id,
@@ -243,7 +243,7 @@ export function useAuth(): UseAuthReturn {
 
       if (userData) {
         // Ensure user record exists in our database with username
-        await $fetch('/api/users/ensure', {
+        await $fetch('/api/users/ensure' as string, {
           method: 'POST',
           body: {
             id: userData.id,

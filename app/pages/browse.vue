@@ -183,7 +183,9 @@ const hasActiveFilters = computed(() =>
   searchQuery.value !== ''
 )
 
-// Fetch recipes using service
+const PAGE_SIZE = 24
+
+// Fetch first page during SSR
 const { data: recipesData, status, refresh: refreshRecipes } = await useAsyncData(
   'browse-recipes',
   async () => {
@@ -198,10 +200,26 @@ const { data: recipesData, status, refresh: refreshRecipes } = await useAsyncDat
 
 const allRecipes = computed(() => recipesData.value?.recipes || [] as UIRecipe[])
 
-// Fallback: if SSR didn't populate recipe data, fetch on client after hydration
+// After hydration: fetch remaining pages sequentially in the background
 watch(isHydrated, async (hydrated) => {
-  if (hydrated && !recipesData.value?.recipes) {
+  if (!hydrated) return
+
+  // If SSR returned nothing, do a full refresh first
+  if (!recipesData.value?.recipes) {
     await refreshRecipes()
+  }
+
+  // Keep fetching pages until we get a partial page (no more results)
+  while (recipesData.value && recipesData.value.recipes.length % PAGE_SIZE === 0) {
+    const categorySlugs = filters.value.categories.length > 0 ? filters.value.categories : undefined
+    const cursor = recipesData.value.recipes[recipesData.value.recipes.length - 1]?.id
+    if (!cursor) break
+    const nextPage = await recipeService.getPublicRecipes({ categorySlugs, cursor })
+    if (nextPage.length === 0) break
+    recipesData.value = {
+      recipes: [...recipesData.value.recipes, ...nextPage.map(transformRecipeToUI)],
+    }
+    if (nextPage.length < PAGE_SIZE) break
   }
 }, { once: true })
 

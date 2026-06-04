@@ -99,7 +99,7 @@ async function removeAvatar(): Promise<void> {
   avatarError.value = ''
 
   try {
-    await $fetch('/api/users/me/avatar', {
+    await $fetch('/api/users/me/avatar' as string, {
       method: 'DELETE',
       headers: getAuthHeaders(),
     })

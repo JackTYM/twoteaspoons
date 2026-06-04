@@ -29,7 +29,7 @@ export function useCategoryService() {
    * Get all categories ordered by type, sort_order, name
    */
   async function getAllCategories(): Promise<DbCategory[]> {
-    return await $fetch('/api/categories')
+    return await $fetch('/api/categories' as string)
   }
 
   /**

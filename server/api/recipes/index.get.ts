@@ -1,15 +1,15 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm'
-import { categories, db, favorites, ingredients, instructions, recipeCategories, recipes } from '../../db'
-import type { Category, Ingredient, Instruction, Recipe, User } from '../../db/schema'
+import { and, desc, eq, inArray, lt } from 'drizzle-orm'
+import { categories, db, favorites, recipeCategories, recipes } from '../../db'
+import type { Category, Recipe, User } from '../../db/schema'
 import type { DbCategory, DbIngredient, DbInstruction, DbRecipe, DbUser } from '~/types/database'
 import { getAuthUser } from '../../utils/session'
 import {
   serializeAuthor,
   serializeCategory,
-  serializeIngredient,
-  serializeInstruction,
   serializeRecipe,
 } from '../../utils/serialize'
+
+const PAGE_SIZE = 24
 
 interface RecipeWithDetails extends DbRecipe {
   author: Pick<DbUser, 'id' | 'name' | 'username' | 'avatar'> | null
@@ -25,8 +25,6 @@ interface RecipeCategoryWithCategory {
 
 interface RecipeRowWithDetails extends Recipe {
   author: User | null
-  ingredients: Ingredient[]
-  instructions: Instruction[]
   categories: RecipeCategoryWithCategory[]
 }
 
@@ -34,8 +32,8 @@ function mapRecipeWithDetails(recipe: RecipeRowWithDetails, savedRecipeIds: Set<
   return {
     ...serializeRecipe(recipe),
     author: recipe.author ? serializeAuthor(recipe.author) : null,
-    ingredients: recipe.ingredients.map(serializeIngredient),
-    instructions: recipe.instructions.map(serializeInstruction),
+    ingredients: [],
+    instructions: [],
     categories: recipe.categories.map((recipeCategory) => serializeCategory(recipeCategory.category)),
     is_saved: savedRecipeIds.has(recipe.id),
   }
@@ -46,6 +44,9 @@ export default defineEventHandler(async (event): Promise<RecipeWithDetails[]> =>
   const categorySlugs = typeof query.categories === 'string'
     ? query.categories.split(',').map((slug) => slug.trim()).filter(Boolean)
     : []
+
+  // Keyset pagination: cursor is the last recipe ID from the previous page
+  const cursor = typeof query.cursor === 'string' ? parseInt(query.cursor, 10) : null
 
   let filteredRecipeIds: number[] | null = null
   if (categorySlugs.length > 0) {
@@ -69,15 +70,16 @@ export default defineEventHandler(async (event): Promise<RecipeWithDetails[]> =>
     }
   }
 
+  const baseWhere = filteredRecipeIds
+    ? and(eq(recipes.isPublished, true), inArray(recipes.id, filteredRecipeIds))
+    : eq(recipes.isPublished, true)
+
   const recipeRows = await db.query.recipes.findMany({
-    where: filteredRecipeIds
-      ? and(eq(recipes.isPublished, true), inArray(recipes.id, filteredRecipeIds))
-      : eq(recipes.isPublished, true),
-    orderBy: desc(recipes.createdAt),
+    where: cursor ? and(baseWhere, lt(recipes.id, cursor)) : baseWhere,
+    orderBy: desc(recipes.id),
+    limit: PAGE_SIZE,
     with: {
       author: true,
-      ingredients: { orderBy: asc(ingredients.sortOrder) },
-      instructions: { orderBy: asc(instructions.stepNumber) },
       categories: { with: { category: true } },
     },
   })
