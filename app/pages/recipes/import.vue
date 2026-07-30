@@ -10,8 +10,9 @@ useSeoMeta({
   description: 'Import a recipe from any URL',
 })
 
-const { getAuthHeaders } = useAuth()
+const { user, getAuthHeaders } = useAuth()
 const { getRecipeUrl } = useRecipeUrl()
+const recipeService = useRecipeService()
 
 // State machine: 'input' → 'importing' → 'success' → 'editing'
 type ImportState = 'input' | 'importing' | 'success' | 'editing'
@@ -87,6 +88,7 @@ interface RecipeFormData {
   sourceUrl: string
   sourceAuthor: string
   sourceSite: string
+  categoryIds: number[]
   ingredients: Array<{ amount: string; unit: string; item: string; notes: string }>
   instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
 }
@@ -96,12 +98,31 @@ async function handleSave(formData: RecipeFormData): Promise<void> {
   saveError.value = ''
 
   try {
-    const result = await $fetch<{ recipe: { id: number; slug: string; author?: { username: string | null } | null } }>('/api/recipes', {
-      method: 'POST',
-      body: formData,
-      headers: getAuthHeaders(),
+    const recipe = await recipeService.createRecipe({
+      title: formData.title,
+      description: formData.description || null,
+      cover_photo: formData.coverPhoto || null,
+      prep_time: formData.prepTime,
+      cook_time: formData.cookTime,
+      servings: formData.servings,
+      is_published: formData.isPublished,
+      source_url: formData.sourceUrl || null,
+      source_author: formData.sourceAuthor || null,
+      source_site: formData.sourceSite || null,
+      ingredients: formData.ingredients,
+      instructions: formData.instructions.map((inst) => ({
+        content: inst.content,
+        timer_minutes: inst.timerMinutes,
+        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map((l) => l.id)) : null,
+      })),
+      category_ids: formData.categoryIds,
     })
-    navigateTo(getRecipeUrl(result.recipe))
+    if (recipe) {
+      navigateTo(getRecipeUrl({
+        slug: recipe.slug,
+        author: { username: user.value?.username || null },
+      }))
+    }
   } catch (err) {
     saveError.value = err instanceof Error ? err.message : 'Failed to save recipe'
   }
