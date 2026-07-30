@@ -15,7 +15,7 @@ bucket_name = "twoteaspoons-images"
 [vars]
 NUXT_PUBLIC_NEON_AUTH_URL = "https://ep-lucky-haze-akey0v5e.neonauth.c-3.us-west-2.aws.neon.tech/neondb/auth"
 NUXT_PUBLIC_NEON_DATA_API_URL = "https://ep-lucky-haze-akey0v5e.apirest.c-3.us-west-2.aws.neon.tech/neondb/rest/v1"
-R2_PUBLIC_URL = "https://b02f8af4ff36e6fa9e028952a9f38043.r2.cloudflarestorage.com"
+R2_PUBLIC_URL = "https://image.twotsps.com"
 
 # Secrets to set in Cloudflare Pages dashboard:
 #

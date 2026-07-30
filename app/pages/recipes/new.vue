@@ -62,6 +62,7 @@ async function handleSubmit(data: FormData): Promise<void> {
       category_ids: [],
     })
     if (recipe) {
+      await refreshNuxtData()
       navigateTo(getRecipeUrl({
         slug: recipe.slug,
         author: { username: user.value?.username || null },

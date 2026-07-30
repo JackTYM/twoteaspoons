@@ -130,6 +130,7 @@ async function handleDelete(): Promise<void> {
     if (recipe.value) {
       await recipeService.deleteRecipe(recipe.value.id)
     }
+    await refreshNuxtData()
     navigateTo('/browse')
   } catch (err) {
     console.error('Failed to delete recipe:', err)
@@ -191,6 +192,7 @@ async function handleFork(): Promise<void> {
   try {
     const forkedRecipe = await recipeService.forkRecipe(recipe.value.id)
     if (forkedRecipe) {
+      await refreshNuxtData()
       // Navigate to the edit page of the forked recipe
       navigateTo(getRecipeEditUrl({
         slug: forkedRecipe.slug,

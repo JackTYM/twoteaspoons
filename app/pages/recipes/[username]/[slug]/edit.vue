@@ -97,6 +97,7 @@ async function handleSubmit(formData: FormData): Promise<void> {
     })
 
     if (updatedRecipe) {
+      await refreshNuxtData()
       // Navigate to the recipe page (which may have a new slug if title changed)
       navigateTo(getRecipeUrl({
         slug: updatedRecipe.slug,
