@@ -7,6 +7,7 @@ import {
   defineAggregateRating,
 } from '@unhead/schema-org/vue'
 import { transformToRecipeWithRelations } from '~/utils/transformCase'
+import { clearRecipeListCaches } from '~/utils/recipeCache'
 
 const route = useRoute()
 const username = computed(() => route.params.username as string)
@@ -130,7 +131,7 @@ async function handleDelete(): Promise<void> {
     if (recipe.value) {
       await recipeService.deleteRecipe(recipe.value.id)
     }
-    await refreshNuxtData()
+    clearRecipeListCaches()
     navigateTo('/browse')
   } catch (err) {
     console.error('Failed to delete recipe:', err)
@@ -192,7 +193,7 @@ async function handleFork(): Promise<void> {
   try {
     const forkedRecipe = await recipeService.forkRecipe(recipe.value.id)
     if (forkedRecipe) {
-      await refreshNuxtData()
+      clearRecipeListCaches()
       // Navigate to the edit page of the forked recipe
       navigateTo(getRecipeEditUrl({
         slug: forkedRecipe.slug,

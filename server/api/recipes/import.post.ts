@@ -27,6 +27,15 @@ function isBlockedHostname(hostname: string): boolean {
   return false
 }
 
+// Some publishers (e.g. Dotdash Meredith / People Inc., which owns Serious
+// Eats, Simply Recipes, Allrecipes, and more) explicitly deny automated
+// access - including from a real rendered browser - rather than serving a
+// solvable bot challenge. Detect their denial page so we can explain the
+// real reason instead of a generic "couldn't find recipe data" error.
+function isPublisherDenialPage(html: string): boolean {
+  return html.includes('contentlicensing@people.inc')
+}
+
 export default defineEventHandler(async (event) => {
   await requireAuth(event)
 
@@ -139,6 +148,13 @@ export default defineEventHandler(async (event) => {
     throw createError({
       statusCode: 502,
       message: `Failed to fetch URL: ${err instanceof Error ? err.message : 'Unknown error'}`,
+    })
+  }
+
+  if (isPublisherDenialPage(html)) {
+    throw createError({
+      statusCode: 403,
+      message: 'This site\'s publisher blocks automated imports outright (even via a real rendered browser) and asks that licensing requests go through contentlicensing@people.inc. Copy the recipe manually instead.',
     })
   }
 

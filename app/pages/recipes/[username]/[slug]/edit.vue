@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
 import { transformToRecipeWithRelations } from '~/utils/transformCase'
+import { clearRecipeListCaches } from '~/utils/recipeCache'
 
 definePageMeta({
   middleware: 'auth',
@@ -97,7 +98,7 @@ async function handleSubmit(formData: FormData): Promise<void> {
     })
 
     if (updatedRecipe) {
-      await refreshNuxtData()
+      clearRecipeListCaches()
       // Navigate to the recipe page (which may have a new slug if title changed)
       navigateTo(getRecipeUrl({
         slug: updatedRecipe.slug,

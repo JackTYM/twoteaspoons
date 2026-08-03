@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
+import { clearRecipeListCaches } from '~/utils/recipeCache'
 
 definePageMeta({
   middleware: 'auth',
@@ -62,7 +63,7 @@ async function handleSubmit(data: FormData): Promise<void> {
       category_ids: [],
     })
     if (recipe) {
-      await refreshNuxtData()
+      clearRecipeListCaches()
       navigateTo(getRecipeUrl({
         slug: recipe.slug,
         author: { username: user.value?.username || null },
