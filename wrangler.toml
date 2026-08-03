@@ -11,6 +11,11 @@ compatibility_flags = ["nodejs_compat"]
 binding = "R2_BUCKET"
 bucket_name = "twoteaspoons-images"
 
+# Browser Rendering binding - fallback for recipe import when a source site's
+# bot protection blocks a plain fetch (see server/utils/browserRender.ts)
+[browser]
+binding = "BROWSER"
+
 # Public environment variables (non-secrets)
 [vars]
 NUXT_PUBLIC_NEON_AUTH_URL = "https://ep-lucky-haze-akey0v5e.neonauth.c-3.us-west-2.aws.neon.tech/neondb/auth"

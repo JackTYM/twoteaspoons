@@ -1,5 +1,6 @@
 import { parseRecipeFromHtml, parseIngredientString } from '../../utils/recipeParser'
 import { requireAuth } from '../../utils/session'
+import { fetchRenderedHtml } from '../../utils/browserRender'
 
 interface ImportBody {
   url: string
@@ -94,28 +95,34 @@ export default defineEventHandler(async (event) => {
     }
 
     if (response.status === 403) {
-      throw createError({
-        statusCode: 403,
-        message: 'This website blocks automated access. Try copying the recipe manually.',
-      })
-    }
+      // Bot-protected site (e.g. a Cloudflare JS challenge) - fall back to
+      // rendering the page in a real browser instead of a plain fetch.
+      try {
+        html = await fetchRenderedHtml(event, url.toString())
+      } catch {
+        throw createError({
+          statusCode: 403,
+          message: 'This website blocks automated access. Try copying the recipe manually.',
+        })
+      }
+    } else {
+      if (!response.ok) {
+        throw createError({
+          statusCode: 502,
+          message: `Failed to fetch recipe: HTTP ${response.status}`,
+        })
+      }
 
-    if (!response.ok) {
-      throw createError({
-        statusCode: 502,
-        message: `Failed to fetch recipe: HTTP ${response.status}`,
-      })
-    }
+      const contentLength = response.headers.get('content-length')
+      if (contentLength && Number(contentLength) > MAX_HTML_BYTES) {
+        throw createError({
+          statusCode: 413,
+          message: 'This page is too large to import',
+        })
+      }
 
-    const contentLength = response.headers.get('content-length')
-    if (contentLength && Number(contentLength) > MAX_HTML_BYTES) {
-      throw createError({
-        statusCode: 413,
-        message: 'This page is too large to import',
-      })
+      html = await response.text()
     }
-
-    html = await response.text()
 
     if (html.length > MAX_HTML_BYTES) {
       throw createError({
