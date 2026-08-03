@@ -98,7 +98,7 @@ export default defineEventHandler(async (event) => {
       // Bot-protected site (e.g. a Cloudflare JS challenge) - fall back to
       // rendering the page in a real browser instead of a plain fetch.
       try {
-        html = await fetchRenderedHtml(event, url.toString())
+        html = await fetchRenderedHtml(url.toString())
       } catch {
         throw createError({
           statusCode: 403,

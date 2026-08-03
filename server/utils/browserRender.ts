@@ -1,31 +1,60 @@
-import type { H3Event } from 'h3'
-import puppeteer, { type BrowserWorker } from '@cloudflare/puppeteer'
+const RENDER_TIMEOUT_MS = 20_000
 
-interface CloudflareEnv {
-  BROWSER: BrowserWorker
+interface ContentResponse {
+  success: boolean
+  result?: string
 }
 
 /**
- * Fetch a page's fully-rendered HTML via Cloudflare Browser Rendering.
- * Used as a fallback when a source site's bot protection (e.g. a Cloudflare
- * JS challenge) blocks a plain server-side fetch.
+ * Fetch a page's fully-rendered HTML via the Cloudflare Browser Rendering
+ * REST API. Used as a fallback when a source site's bot protection (e.g. a
+ * Cloudflare JS challenge) blocks a plain server-side fetch.
+ *
+ * Uses the REST API (not a Workers binding) because this project deploys to
+ * Cloudflare Pages, which does not support the Browser Rendering binding.
  */
-export async function fetchRenderedHtml(event: H3Event, url: string): Promise<string> {
-  const context = event.context.cloudflare
-  if (!context?.env?.BROWSER) {
+export async function fetchRenderedHtml(url: string): Promise<string> {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID
+  const apiToken = process.env.CLOUDFLARE_BROWSER_RENDERING_TOKEN
+
+  if (!accountId || !apiToken) {
     throw createError({
       statusCode: 500,
       message: 'Browser rendering not configured',
     })
   }
 
-  const browser = await puppeteer.launch((context.env as CloudflareEnv).BROWSER)
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/browser-rendering/content`,
+    {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        url,
+        gotoOptions: { waitUntil: 'domcontentloaded', timeout: RENDER_TIMEOUT_MS },
+      }),
+      signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
+    }
+  )
 
-  try {
-    const page = await browser.newPage()
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 20_000 })
-    return await page.content()
-  } finally {
-    await browser.close()
+  if (!response.ok) {
+    throw createError({
+      statusCode: 502,
+      message: `Browser rendering request failed: HTTP ${response.status}`,
+    })
   }
+
+  const data = await response.json() as ContentResponse
+
+  if (!data.success || typeof data.result !== 'string') {
+    throw createError({
+      statusCode: 502,
+      message: 'Browser rendering returned no content',
+    })
+  }
+
+  return data.result
 }
