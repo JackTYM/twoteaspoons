@@ -2,12 +2,6 @@
 import { transformToRecipeWithRelations } from '~/utils/transformCase'
 import { clearRecipeListCaches } from '~/utils/recipeCache'
 
-// Loaded lazily (and only client-side via <ClientOnly>) because vuedraggable's
-// SSR bundle crashes in the Cloudflare Workers runtime.
-const RecipeEditor = defineAsyncComponent(
-  () => import('~/components/recipe-editor/RecipeEditor.vue')
-)
-
 definePageMeta({
   middleware: 'auth',
 })
@@ -167,7 +161,7 @@ async function handleSubmit(formData: FormData): Promise<void> {
       />
 
       <ClientOnly>
-        <RecipeEditor
+        <LazyRecipeEditor
           :initial-data="{
             title: recipe.title,
             description: recipe.description || undefined,

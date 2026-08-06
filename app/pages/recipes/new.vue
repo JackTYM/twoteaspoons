@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { clearRecipeListCaches } from '~/utils/recipeCache'
 
-// Loaded lazily (and only client-side via <ClientOnly>) because vuedraggable's
-// SSR bundle crashes in the Cloudflare Workers runtime.
-const RecipeEditor = defineAsyncComponent(
-  () => import('~/components/recipe-editor/RecipeEditor.vue')
-)
-
 definePageMeta({
   middleware: 'auth',
 })
@@ -112,7 +106,7 @@ async function handleSubmit(data: FormData): Promise<void> {
     />
 
     <ClientOnly>
-      <RecipeEditor
+      <LazyRecipeEditor
         submit-label="Create Recipe"
         :loading="loading"
         autosave-key="recipe-new"
