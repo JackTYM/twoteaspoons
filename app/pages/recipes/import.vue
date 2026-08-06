@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
 import { clearRecipeListCaches } from '~/utils/recipeCache'
+
+// Loaded lazily (and only client-side via <ClientOnly>) because vuedraggable's
+// SSR bundle crashes in the Cloudflare Workers runtime.
+const RecipeEditor = defineAsyncComponent(
+  () => import('~/components/recipe-editor/RecipeEditor.vue')
+)
 
 definePageMeta({
   middleware: 'auth',
@@ -91,7 +96,11 @@ interface RecipeFormData {
   sourceSite: string
   categoryIds: number[]
   ingredients: Array<{ amount: string; unit: string; item: string; notes: string }>
-  instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
+  instructions: Array<{
+    content: string
+    timerMinutes: number | null
+    ingredientLinks: IngredientLink[]
+  }>
 }
 
 async function handleSave(formData: RecipeFormData): Promise<void> {
@@ -111,19 +120,23 @@ async function handleSave(formData: RecipeFormData): Promise<void> {
       source_author: formData.sourceAuthor || null,
       source_site: formData.sourceSite || null,
       ingredients: formData.ingredients,
-      instructions: formData.instructions.map((inst) => ({
+      instructions: formData.instructions.map(inst => ({
         content: inst.content,
         timer_minutes: inst.timerMinutes,
-        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map((l) => l.id)) : null,
+        ingredient_ids: inst.ingredientLinks?.length
+          ? JSON.stringify(inst.ingredientLinks.map(l => l.id))
+          : null,
       })),
       category_ids: formData.categoryIds,
     })
     if (recipe) {
       clearRecipeListCaches()
-      navigateTo(getRecipeUrl({
-        slug: recipe.slug,
-        author: { username: user.value?.username || null },
-      }))
+      navigateTo(
+        getRecipeUrl({
+          slug: recipe.slug,
+          author: { username: user.value?.username || null },
+        })
+      )
     }
   } catch (err) {
     saveError.value = err instanceof Error ? err.message : 'Failed to save recipe'
@@ -143,10 +156,7 @@ function resetImport(): void {
 <template>
   <div class="px-4 sm:px-6 py-8">
     <!-- Non-editing states: centered narrow layout -->
-    <div
-      v-if="state !== 'editing'"
-      class="max-w-3xl mx-auto"
-    >
+    <div v-if="state !== 'editing'" class="max-w-3xl mx-auto">
       <!-- Breadcrumbs -->
       <Breadcrumbs
         :items="[
@@ -167,14 +177,8 @@ function resetImport(): void {
       </div>
 
       <!-- State: Input -->
-      <Transition
-        name="slide-fade"
-        mode="out-in"
-      >
-        <div
-          v-if="state === 'input'"
-          key="input"
-        >
+      <Transition name="slide-fade" mode="out-in">
+        <div v-if="state === 'input'" key="input">
           <ImportUrlInputCard
             v-model="url"
             :importing="false"
@@ -185,22 +189,13 @@ function resetImport(): void {
         </div>
 
         <!-- State: Importing -->
-        <div
-          v-else-if="state === 'importing'"
-          key="importing"
-        >
+        <div v-else-if="state === 'importing'" key="importing">
           <ImportProgress />
         </div>
 
         <!-- State: Success -->
-        <div
-          v-else-if="state === 'success' && importedData"
-          key="success"
-        >
-          <ImportSuccess
-            :recipe="importedData"
-            @continue="continueToEditor"
-          />
+        <div v-else-if="state === 'success' && importedData" key="success">
+          <ImportSuccess :recipe="importedData" @continue="continueToEditor" />
         </div>
       </Transition>
     </div>
@@ -222,10 +217,7 @@ function resetImport(): void {
               v-if="importedData?.sourceSite"
               class="inline-flex items-center gap-2 px-3 py-1.5 bg-sage-50 dark:bg-sage-900/20 text-sage-700 dark:text-sage-300 rounded-full text-sm"
             >
-              <UIcon
-                name="i-heroicons-check-circle"
-                class="w-4 h-4"
-              />
+              <UIcon name="i-heroicons-check-circle" class="w-4 h-4" />
               Imported from {{ importedData.sourceSite }}
             </div>
             <UButton
@@ -250,14 +242,16 @@ function resetImport(): void {
         class="max-w-6xl mx-auto mb-6"
       />
 
-      <RecipeEditor
-        :initial-data="importedData"
-        submit-label="Save to My Recipes"
-        :loading="saving"
-        autosave-key="recipe-import"
-        mode="create"
-        @submit="handleSave"
-      />
+      <ClientOnly>
+        <RecipeEditor
+          :initial-data="importedData"
+          submit-label="Save to My Recipes"
+          :loading="saving"
+          autosave-key="recipe-import"
+          mode="create"
+          @submit="handleSave"
+        />
+      </ClientOnly>
     </div>
   </div>
 </template>

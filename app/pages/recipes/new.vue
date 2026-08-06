@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
 import { clearRecipeListCaches } from '~/utils/recipeCache'
+
+// Loaded lazily (and only client-side via <ClientOnly>) because vuedraggable's
+// SSR bundle crashes in the Cloudflare Workers runtime.
+const RecipeEditor = defineAsyncComponent(
+  () => import('~/components/recipe-editor/RecipeEditor.vue')
+)
 
 definePageMeta({
   middleware: 'auth',
@@ -35,7 +40,11 @@ interface FormData {
   sourceAuthor: string
   sourceSite: string
   ingredients: Array<{ amount: string; unit: string; item: string; notes: string }>
-  instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
+  instructions: Array<{
+    content: string
+    timerMinutes: number | null
+    ingredientLinks: IngredientLink[]
+  }>
 }
 
 async function handleSubmit(data: FormData): Promise<void> {
@@ -58,16 +67,20 @@ async function handleSubmit(data: FormData): Promise<void> {
       instructions: data.instructions.map(inst => ({
         content: inst.content,
         timer_minutes: inst.timerMinutes,
-        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map(l => l.id)) : null,
+        ingredient_ids: inst.ingredientLinks?.length
+          ? JSON.stringify(inst.ingredientLinks.map(l => l.id))
+          : null,
       })),
       category_ids: [],
     })
     if (recipe) {
       clearRecipeListCaches()
-      navigateTo(getRecipeUrl({
-        slug: recipe.slug,
-        author: { username: user.value?.username || null },
-      }))
+      navigateTo(
+        getRecipeUrl({
+          slug: recipe.slug,
+          author: { username: user.value?.username || null },
+        })
+      )
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to create recipe'
@@ -98,12 +111,14 @@ async function handleSubmit(data: FormData): Promise<void> {
       class="max-w-6xl mx-auto mb-6"
     />
 
-    <RecipeEditor
-      submit-label="Create Recipe"
-      :loading="loading"
-      autosave-key="recipe-new"
-      mode="create"
-      @submit="handleSubmit"
-    />
+    <ClientOnly>
+      <RecipeEditor
+        submit-label="Create Recipe"
+        :loading="loading"
+        autosave-key="recipe-new"
+        mode="create"
+        @submit="handleSubmit"
+      />
+    </ClientOnly>
   </div>
 </template>

@@ -1,7 +1,12 @@
 <script setup lang="ts">
-import RecipeEditor from '~/components/recipe-editor/RecipeEditor.vue'
 import { transformToRecipeWithRelations } from '~/utils/transformCase'
 import { clearRecipeListCaches } from '~/utils/recipeCache'
+
+// Loaded lazily (and only client-side via <ClientOnly>) because vuedraggable's
+// SSR bundle crashes in the Cloudflare Workers runtime.
+const RecipeEditor = defineAsyncComponent(
+  () => import('~/components/recipe-editor/RecipeEditor.vue')
+)
 
 definePageMeta({
   middleware: 'auth',
@@ -67,7 +72,11 @@ interface FormData {
     item: string
     notes: string
   }>
-  instructions: Array<{ content: string; timerMinutes: number | null; ingredientLinks: IngredientLink[] }>
+  instructions: Array<{
+    content: string
+    timerMinutes: number | null
+    ingredientLinks: IngredientLink[]
+  }>
 }
 
 async function handleSubmit(formData: FormData): Promise<void> {
@@ -92,7 +101,9 @@ async function handleSubmit(formData: FormData): Promise<void> {
       instructions: formData.instructions.map(inst => ({
         content: inst.content,
         timer_minutes: inst.timerMinutes,
-        ingredient_ids: inst.ingredientLinks?.length ? JSON.stringify(inst.ingredientLinks.map(l => l.id)) : null,
+        ingredient_ids: inst.ingredientLinks?.length
+          ? JSON.stringify(inst.ingredientLinks.map(l => l.id))
+          : null,
       })),
       category_ids: [],
     })
@@ -100,10 +111,12 @@ async function handleSubmit(formData: FormData): Promise<void> {
     if (updatedRecipe) {
       clearRecipeListCaches()
       // Navigate to the recipe page (which may have a new slug if title changed)
-      navigateTo(getRecipeUrl({
-        slug: updatedRecipe.slug,
-        author: updatedRecipe.author,
-      }))
+      navigateTo(
+        getRecipeUrl({
+          slug: updatedRecipe.slug,
+          author: updatedRecipe.author,
+        })
+      )
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to update recipe'
@@ -116,10 +129,7 @@ async function handleSubmit(formData: FormData): Promise<void> {
 <template>
   <div class="px-4 sm:px-6 py-8">
     <!-- Loading -->
-    <div
-      v-if="status === 'pending'"
-      class="max-w-6xl mx-auto"
-    >
+    <div v-if="status === 'pending'" class="max-w-6xl mx-auto">
       <USkeleton class="h-10 w-1/2 mb-8" />
       <USkeleton class="h-96" />
     </div>
@@ -156,41 +166,43 @@ async function handleSubmit(formData: FormData): Promise<void> {
         class="max-w-6xl mx-auto mb-6"
       />
 
-      <RecipeEditor
-        :initial-data="{
-          title: recipe.title,
-          description: recipe.description || undefined,
-          coverPhoto: recipe.coverPhoto || undefined,
-          prepTime: recipe.prepTime || undefined,
-          cookTime: recipe.cookTime || undefined,
-          servings: recipe.servings || undefined,
-          isPublished: recipe.isPublished ?? true,
-          sourceUrl: recipe.sourceUrl || undefined,
-          sourceAuthor: recipe.sourceAuthor || undefined,
-          sourceSite: recipe.sourceSite || undefined,
-          categories: recipe.categories,
-          ingredients: recipe.ingredients.map((i) => ({
-            id: i.id,
-            amount: i.amount || undefined,
-            unit: i.unit || undefined,
-            item: i.item,
-            notes: i.notes || undefined,
-          })),
-          instructions: recipe.instructions.map((i) => ({
-            id: i.id,
-            content: i.content,
-            timerMinutes: i.timerMinutes || undefined,
-            // Support both old ingredientIds and new ingredientLinks formats
-            ingredientIds: i.ingredientIds || [],
-            ingredientLinks: i.ingredientLinks || undefined,
-          })),
-        }"
-        submit-label="Save Changes"
-        :loading="loading"
-        :autosave-key="`recipe-edit-${recipe.id}`"
-        mode="edit"
-        @submit="handleSubmit"
-      />
+      <ClientOnly>
+        <RecipeEditor
+          :initial-data="{
+            title: recipe.title,
+            description: recipe.description || undefined,
+            coverPhoto: recipe.coverPhoto || undefined,
+            prepTime: recipe.prepTime || undefined,
+            cookTime: recipe.cookTime || undefined,
+            servings: recipe.servings || undefined,
+            isPublished: recipe.isPublished ?? true,
+            sourceUrl: recipe.sourceUrl || undefined,
+            sourceAuthor: recipe.sourceAuthor || undefined,
+            sourceSite: recipe.sourceSite || undefined,
+            categories: recipe.categories,
+            ingredients: recipe.ingredients.map(i => ({
+              id: i.id,
+              amount: i.amount || undefined,
+              unit: i.unit || undefined,
+              item: i.item,
+              notes: i.notes || undefined,
+            })),
+            instructions: recipe.instructions.map(i => ({
+              id: i.id,
+              content: i.content,
+              timerMinutes: i.timerMinutes || undefined,
+              // Support both old ingredientIds and new ingredientLinks formats
+              ingredientIds: i.ingredientIds || [],
+              ingredientLinks: i.ingredientLinks || undefined,
+            })),
+          }"
+          submit-label="Save Changes"
+          :loading="loading"
+          :autosave-key="`recipe-edit-${recipe.id}`"
+          mode="edit"
+          @submit="handleSubmit"
+        />
+      </ClientOnly>
     </template>
   </div>
 </template>
