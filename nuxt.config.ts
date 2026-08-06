@@ -12,11 +12,6 @@ export default defineNuxtConfig({
     },
   },
 
-  routeRules: {
-    // Cache the browse page SSR output for 60s — Worker only does the heavy render once per minute
-    '/browse': { cache: { maxAge: 60 } },
-  },
-
   // Prevent @neondatabase/neon-js from being SSR bundled - it does async I/O at module load
   vite: {
     optimizeDeps: {
